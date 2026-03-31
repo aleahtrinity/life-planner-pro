@@ -591,8 +591,38 @@ async function loadAllData(){
   });
 }
 
+// ── PASSWORD RESET COMPLETION ────────────────────
+async function completePasswordReset(){
+  const newPassword=document.getElementById('reset-new-password').value;
+  const confirm=document.getElementById('reset-confirm-password').value;
+  if(!newPassword||newPassword.length<6){showAuthError('Password must be at least 6 characters.');return;}
+  if(newPassword!==confirm){showAuthError('Passwords do not match.');return;}
+  const{error}=await supabase.auth.updateUser({password:newPassword});
+  if(error){showAuthError(error.message);}
+  else{
+    const el=document.getElementById('auth-error');
+    el.style.background='#f0fff4';el.style.borderColor='#9ae6b4';el.style.color='#276749';
+    el.textContent='Password updated! Signing you in…';
+    el.style.display='block';
+    document.getElementById('reset-password-form').style.display='none';
+  }
+}
+window.completePasswordReset=completePasswordReset;
+
 // ── AUTH STATE LISTENER ──────────────────────────
 supabase.auth.onAuthStateChange(async(event, session)=>{
+  // Intercept password recovery flow before showing the app
+  if(event==='PASSWORD_RECOVERY'){
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('login-form').style.display='none';
+    document.getElementById('signup-form').style.display='none';
+    document.getElementById('forgot-form').style.display='none';
+    document.getElementById('reset-password-form').style.display='block';
+    document.getElementById('auth-subtitle').textContent='Choose a new password';
+    document.getElementById('auth-error').style.display='none';
+    document.getElementById('app').style.display='none';
+    return;
+  }
   if(session&&session.user){
     currentUser=session.user;
     // Load data from Supabase first
@@ -731,6 +761,11 @@ body.theme-blue .auth-btn{background:#79a3c3;color:#fff}
       <div class="auth-field"><label>Email</label><input type="email" id="forgot-email" placeholder="you@email.com"/></div>
       <button class="auth-btn" onclick="sendPasswordReset()">Send Reset Link</button>
       <div class="auth-switch"><a onclick="showLogin()">← Back to sign in</a></div>
+    </div>
+    <div id="reset-password-form" style="display:none">
+      <div class="auth-field"><label>New Password</label><input type="password" id="reset-new-password" placeholder="At least 6 characters"/></div>
+      <div class="auth-field"><label>Confirm New Password</label><input type="password" id="reset-confirm-password" placeholder="Repeat new password"/></div>
+      <button class="auth-btn" onclick="completePasswordReset()">Set New Password</button>
     </div>
     <div id="signup-form" style="display:none">
       <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="you@email.com"/></div>

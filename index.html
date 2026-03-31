@@ -1,0 +1,3841 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="blackwhite">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life Planner Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ===== ROOT ===== */
+:root {
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Jost', sans-serif;
+  --bg: #f7f7f7;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #888;
+  --radius: 14px;
+  --shadow: 0 2px 16px rgba(0,0,0,0.07);
+  --border: #e8e8e8;
+  --sidebar-w: 232px;
+  --tr: 0.2s ease;
+}
+
+/* ===== THEMES ===== */
+[data-theme="blackwhite"] { --accent:#1a1a1a; --accent-hover:#333; --accent-light:#f5f5f5; --accent-text:#fff; }
+[data-theme="blush"]      { --accent:#c4768a; --accent-hover:#b0617a; --accent-light:#fdf0f3; --accent-text:#fff; }
+[data-theme="blue"]       { --accent:#79A3C3; --accent-hover:#5f8faf; --accent-light:#eef4f9; --accent-text:#fff; }
+
+/* ===== RESET ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+h1,h2,h3,h4{font-family:var(--font-heading);font-weight:600}
+input,textarea,select{font-family:var(--font-body)}
+button{cursor:pointer}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;min-height:100vh}
+#sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--surface);border-right:3px solid var(--accent);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform var(--tr);overflow-y:auto}
+#main-content{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column}
+#app-content{flex:1;padding:28px 32px;max-width:1200px}
+
+/* ===== SIDEBAR ===== */
+.sidebar-logo{padding:22px 18px 14px;border-bottom:1px solid var(--border)}
+.sidebar-logo h2{font-size:16px;line-height:1.3}
+.sidebar-logo span{font-size:11px;color:var(--text-muted);font-family:var(--font-body);font-weight:400;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:6px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;transition:background var(--tr),color var(--tr);font-size:13px;color:var(--text-muted);user-select:none;border-left:3px solid transparent}
+.nav-item:hover{background:var(--accent-light);color:var(--text)}
+.nav-item.active{background:var(--accent-light);color:var(--accent);font-weight:600;border-left-color:var(--accent)}
+.nav-icon{width:18px;text-align:center;font-size:14px}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
+.sidebar-footer strong{display:block;color:var(--text);font-size:13px;margin-bottom:2px}
+
+/* ===== TOP BAR (mobile) ===== */
+#top-bar{display:none;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:90}
+#hamburger{background:none;border:none;padding:4px;display:flex;flex-direction:column;gap:5px}
+#hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px}
+#top-bar-title{font-family:var(--font-heading);font-size:16px}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+
+/* ===== SAVE INDICATOR ===== */
+#save-indicator{position:fixed;top:12px;right:20px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;z-index:9999;display:none;background:var(--accent);color:var(--accent-text)}
+
+/* ===== AUTH ===== */
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.auth-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:40px;width:100%;max-width:400px}
+.auth-card h1{font-size:26px;margin-bottom:6px}
+.auth-subtitle{color:var(--text-muted);font-size:13px;margin-bottom:24px}
+.auth-tabs{display:flex;margin-bottom:20px;border-bottom:2px solid var(--border)}
+.auth-tab-btn{flex:1;padding:10px;background:none;border:none;font-family:var(--font-body);font-size:14px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--tr)}
+.auth-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.auth-form-group{margin-bottom:14px}
+.auth-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:var(--font-body);outline:none;transition:border-color var(--tr)}
+.auth-input:focus{border-color:var(--accent)}
+.auth-btn{width:100%;padding:12px;background:var(--accent);color:var(--accent-text);border:none;border-radius:8px;font-family:var(--font-body);font-size:14px;font-weight:600;margin-top:6px;transition:background var(--tr)}
+.auth-btn:hover{background:var(--accent-hover)}
+#auth-error{color:#e74c3c;font-size:13px;margin-top:10px;display:none}
+#auth-msg{color:var(--text-muted);font-size:13px;margin-top:10px;display:none}
+
+/* ===== CARDS ===== */
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;position:relative;overflow:hidden;margin-bottom:18px}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;pointer-events:none;border-radius:var(--radius) var(--radius) 0 0}
+[data-theme="blackwhite"] .card::before{border-top:4px double #1a1a1a;height:8px}
+[data-theme="blush"] .card::before{height:5px;background:linear-gradient(135deg,#EFCED7,#e8b5c0)}
+[data-theme="blue"] .card::before{height:5px;background:linear-gradient(135deg,#79A3C3,#b0cede)}
+.card-title{font-family:var(--font-heading);font-size:16px;margin-bottom:14px}
+.card-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:12px}
+
+/* ===== SECTION HEADER ===== */
+.section-header{margin-bottom:24px}
+.section-header h1{font-size:26px}
+.section-header p{color:var(--text-muted);font-size:14px;margin-top:4px}
+
+/* ===== GRIDS ===== */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid-7{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+
+/* ===== BUTTONS ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:var(--font-body);font-size:13.5px;font-weight:500;transition:var(--tr);white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--accent-text)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--accent-light);color:var(--accent);border:1.5px solid var(--accent)}
+.btn-secondary:hover{background:var(--accent);color:var(--accent-text)}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1.5px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5}
+.btn-danger:hover{background:#dc2626;color:white}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn-icon{padding:6px 8px;font-size:14px}
+
+/* ===== FORMS ===== */
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.form-group{flex:1;min-width:120px;margin-bottom:12px}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.input,.select,.textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--text);background:white;outline:none;transition:border-color var(--tr)}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--accent)}
+.textarea{resize:vertical;min-height:80px}
+
+/* ===== TABS ===== */
+.tab-bar{display:flex;gap:2px;margin-bottom:20px;border-bottom:2px solid var(--border);overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{padding:9px 16px;background:none;border:none;font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--tr);white-space:nowrap;flex-shrink:0}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ===== TABLES ===== */
+.table-wrap{overflow-x:auto;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 12px;background:var(--bg);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:2px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+
+/* ===== PROGRESS ===== */
+.progress-wrap{background:var(--bg);border-radius:100px;height:8px;overflow:hidden;margin:6px 0}
+.progress-fill{height:100%;border-radius:100px;transition:width .4s ease}
+.progress-green{background:#4ade80}
+.progress-yellow{background:#fbbf24}
+.progress-red{background:#f87171}
+.progress-blue{background:#60a5fa}
+.progress-purple{background:#c084fc}
+
+/* ===== BADGES ===== */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge-green{background:#dcfce7;color:#166534}
+.badge-yellow{background:#fef9c3;color:#854d0e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-purple{background:#f3e8ff;color:#6b21a8}
+.badge-gray{background:#f3f4f6;color:#374151}
+.badge-pink{background:#fce7f3;color:#9d174d}
+.badge-orange{background:#ffedd5;color:#9a3412}
+
+/* ===== STAT CARDS ===== */
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;pointer-events:none;border-radius:var(--radius) var(--radius) 0 0}
+[data-theme="blackwhite"] .stat-card::before{border-top:3px double #1a1a1a;height:6px}
+[data-theme="blush"] .stat-card::before{height:3px;background:linear-gradient(135deg,#EFCED7,#e8b5c0)}
+[data-theme="blue"] .stat-card::before{height:3px;background:linear-gradient(135deg,#79A3C3,#b0cede)}
+.stat-value{font-family:var(--font-heading);font-size:28px;font-weight:700;color:var(--accent);line-height:1;margin-bottom:4px}
+.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+
+/* ===== QUOTE BOX ===== */
+.quote-box{text-align:center;padding:18px 22px;background:var(--accent-light);border-radius:var(--radius);border-left:4px solid var(--accent);margin-bottom:20px}
+.quote-text{font-family:var(--font-heading);font-style:italic;font-size:15px;line-height:1.7;transition:opacity .5s}
+
+/* ===== COVER PHOTO ===== */
+.cover-section{position:relative;margin-bottom:20px;border-radius:var(--radius);overflow:hidden}
+.cover-img{width:100%;height:180px;object-fit:cover;display:block}
+.cover-placeholder{width:100%;height:160px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px dashed var(--accent);border-radius:var(--radius);color:var(--accent);font-size:13px;gap:8px}
+.cover-edit-btn{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.55);color:white;border:none;padding:5px 11px;border-radius:6px;font-size:12px;font-family:var(--font-body)}
+
+/* ===== HABIT ITEMS ===== */
+.habit-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border);margin-bottom:8px;background:white;transition:border-color var(--tr)}
+.habit-item:hover{border-color:var(--accent)}
+.habit-item.completed{background:var(--accent-light);border-color:var(--accent)}
+.habit-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:var(--tr);cursor:pointer;font-size:12px}
+.habit-check.checked{background:var(--accent);border-color:var(--accent);color:white}
+.habit-name{flex:1;font-size:13.5px}
+.habit-name.done{text-decoration:line-through;color:var(--text-muted)}
+.habit-streak{font-size:12px;color:var(--text-muted);background:var(--bg);padding:2px 8px;border-radius:20px}
+.habit-cat{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--accent-light);color:var(--accent);text-transform:uppercase;letter-spacing:.3px}
+
+/* ===== CALENDAR ===== */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-nav h3{font-family:var(--font-heading);font-size:17px}
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:2px}
+.cal-day-name{text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;padding:6px 0}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden}
+.cal-day{background:white;min-height:70px;padding:6px;cursor:pointer;transition:background var(--tr);position:relative}
+.cal-day:hover{background:var(--accent-light)}
+.cal-day.today{background:var(--accent-light)}
+.cal-day.today .cal-day-num{background:var(--accent);color:white;border-radius:50%}
+.cal-day.other-month{background:var(--bg);opacity:.55}
+.cal-day-num{font-size:12px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
+.cal-event-dot{font-size:10px;background:var(--accent);color:white;border-radius:3px;padding:1px 4px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== TIME BLOCKS ===== */
+.time-block{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:8px;border:1.5px solid var(--border)}
+.block-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ===== MOOD ===== */
+.mood-picker{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.mood-btn{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:white;font-size:22px;display:flex;align-items:center;justify-content:center;transition:var(--tr)}
+.mood-btn.selected,.mood-btn:hover{border-color:var(--accent);background:var(--accent-light)}
+
+/* ===== TRIP CARD ===== */
+.trip-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;cursor:pointer;transition:box-shadow var(--tr),transform var(--tr);border:1.5px solid var(--border);margin-bottom:12px;position:relative;overflow:hidden}
+.trip-card::before{content:'';position:absolute;top:0;left:0;right:0;pointer-events:none;border-radius:var(--radius) var(--radius) 0 0}
+[data-theme="blackwhite"] .trip-card::before{border-top:3px double #1a1a1a;height:6px}
+[data-theme="blush"] .trip-card::before{height:3px;background:linear-gradient(135deg,#EFCED7,#e8b5c0)}
+[data-theme="blue"] .trip-card::before{height:3px;background:linear-gradient(135deg,#79A3C3,#b0cede)}
+.trip-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.12);transform:translateY(-1px)}
+.trip-card h3{font-family:var(--font-heading);font-size:16px;margin-bottom:4px}
+
+/* ===== THEME PICKER ===== */
+.theme-options{display:flex;gap:14px;flex-wrap:wrap}
+.theme-option{cursor:pointer;border-radius:12px;overflow:hidden;border:3px solid transparent;transition:var(--tr);width:115px}
+.theme-option.selected{border-color:var(--accent)}
+.theme-preview{height:54px;display:flex;border-radius:9px 9px 0 0;overflow:hidden}
+.theme-preview-bar{width:28px;height:100%}
+.theme-preview-main{flex:1;background:white;padding:6px;display:flex;flex-direction:column;gap:4px}
+.theme-preview-stripe{height:3px;border-radius:2px;width:100%}
+.theme-preview-line{height:4px;background:#eee;border-radius:2px;width:80%}
+.theme-option p{text-align:center;font-size:12px;font-weight:600;padding:6px;background:var(--bg)}
+
+/* ===== STARS ===== */
+.star{font-size:18px;cursor:pointer;color:#d1d5db;transition:color .1s}
+.star.lit{color:#fbbf24}
+
+/* ===== MEAL GRID ===== */
+.meal-grid{display:grid;grid-template-columns:80px repeat(7,1fr);gap:4px;font-size:12px}
+.meal-col-header{font-weight:700;text-align:center;padding:6px 4px;background:var(--bg);border-radius:6px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
+.meal-row-label{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--text-muted);display:flex;align-items:center;padding-right:6px}
+.meal-cell textarea{width:100%;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-body);font-size:12px;resize:none;min-height:52px;outline:none;transition:border-color var(--tr)}
+.meal-cell textarea:focus{border-color:var(--accent)}
+
+/* ===== ROUTINE ===== */
+.routine-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:6px;background:white}
+.routine-item input{flex:1;border:none;outline:none;font-family:var(--font-body);font-size:13.5px;background:transparent}
+.routine-arrows{display:flex;flex-direction:column;gap:1px}
+.rarrow{background:none;border:none;font-size:10px;color:var(--text-muted);padding:0 3px;line-height:1.2}
+.rarrow:hover{color:var(--accent)}
+
+/* ===== PACKING CHECKLIST ===== */
+.pack-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);margin-bottom:6px}
+.pack-item.packed{background:var(--accent-light);border-color:var(--accent)}
+.pack-item label{flex:1;cursor:pointer;font-size:13.5px}
+.pack-item.packed label{text-decoration:line-through;color:var(--text-muted)}
+
+/* ===== JOURNAL ===== */
+.journal-entry{border:1.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.journal-entry-header{padding:12px 16px;background:var(--bg);display:flex;align-items:center;gap:10px;cursor:pointer}
+.journal-entry-header:hover{background:var(--accent-light)}
+.journal-entry-body{padding:14px 16px;display:none;border-top:1px solid var(--border)}
+.journal-entry-body.open{display:block}
+
+/* ===== MISC UTILS ===== */
+.flex{display:flex}.flex-1{flex:1}.items-center{align-items:center}.justify-between{justify-content:space-between}
+.gap-2{gap:8px}.gap-3{gap:12px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}.mb-4{margin-bottom:16px}.mt-2{margin-top:8px}.mt-3{margin-top:12px}
+.text-sm{font-size:12px}.text-muted{color:var(--text-muted)}.text-accent{color:var(--accent)}.font-bold{font-weight:700}.italic{font-style:italic}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.hidden{display:none!important}
+.w-full{width:100%}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#bbb}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #main-content{margin-left:0}
+  #top-bar{display:flex}
+  #overlay.show{display:block}
+  #app-content{padding:16px}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .grid-7{grid-template-columns:repeat(2,1fr)}
+  .meal-grid{grid-template-columns:60px repeat(3,1fr)}
+  .cal-day{min-height:44px;padding:3px}
+  .section-header h1{font-size:22px}
+  .form-row{flex-direction:column}
+  .tab-btn{padding:8px 12px;font-size:12px}
+}
+@media(max-width:480px){
+  .auth-card{padding:24px 18px}
+  .meal-grid{grid-template-columns:55px 1fr 1fr}
+}
+</style>
+
+<body>
+
+<!-- Save Indicator -->
+<div id="save-indicator">Saving…</div>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <h1>Life Planner Pro</h1>
+    <p class="auth-subtitle">Your all-in-one personal organizer</p>
+    <div class="auth-tabs">
+      <button class="auth-tab-btn active" onclick="showAuthTab('login')">Sign In</button>
+      <button class="auth-tab-btn" onclick="showAuthTab('signup')">Sign Up</button>
+    </div>
+    <!-- Login -->
+    <div id="auth-login">
+      <div class="auth-form-group">
+        <input class="auth-input" type="email" id="login-email" placeholder="Email address" autocomplete="email">
+      </div>
+      <div class="auth-form-group">
+        <input class="auth-input" type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+      </div>
+      <button class="auth-btn" onclick="doLogin()">Sign In</button>
+    </div>
+    <!-- Signup -->
+    <div id="auth-signup" style="display:none">
+      <div class="auth-form-group">
+        <input class="auth-input" type="text" id="signup-name" placeholder="Your name">
+      </div>
+      <div class="auth-form-group">
+        <input class="auth-input" type="email" id="signup-email" placeholder="Email address" autocomplete="email">
+      </div>
+      <div class="auth-form-group">
+        <input class="auth-input" type="password" id="signup-password" placeholder="Password (min 6 chars)" autocomplete="new-password">
+      </div>
+      <button class="auth-btn" onclick="doSignup()">Create Account</button>
+    </div>
+    <p id="auth-error"></p>
+    <p id="auth-msg"></p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none">
+
+  <!-- Mobile overlay -->
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Life Planner Pro</h2>
+      <span>All-in-one organizer</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-section="home" onclick="navigate('home')">
+        <span class="nav-icon">🏠</span> Home
+      </div>
+      <div class="nav-item" data-section="planner" onclick="navigate('planner')">
+        <span class="nav-icon">📅</span> Planner
+      </div>
+      <div class="nav-item" data-section="habits" onclick="navigate('habits')">
+        <span class="nav-icon">✅</span> Habits & Routines
+      </div>
+      <div class="nav-item" data-section="health" onclick="navigate('health')">
+        <span class="nav-icon">💪</span> Health & Wellness
+      </div>
+      <div class="nav-item" data-section="mental" onclick="navigate('mental')">
+        <span class="nav-icon">🧠</span> Mental Health
+      </div>
+      <div class="nav-item" data-section="meals" onclick="navigate('meals')">
+        <span class="nav-icon">🥗</span> Meal Planning
+      </div>
+      <div class="nav-item" data-section="travel" onclick="navigate('travel')">
+        <span class="nav-icon">✈️</span> Travel
+      </div>
+      <div class="nav-item" data-section="finance" onclick="navigate('finance')">
+        <span class="nav-icon">💰</span> Finance
+      </div>
+      <div class="nav-item" data-section="career" onclick="navigate('career')">
+        <span class="nav-icon">🎯</span> Career & Goals
+      </div>
+      <div class="nav-item" data-section="social" onclick="navigate('social')">
+        <span class="nav-icon">📱</span> Social Media
+      </div>
+      <div class="nav-item" data-section="notes" onclick="navigate('notes')">
+        <span class="nav-icon">📓</span> Notes & Journal
+      </div>
+      <div class="nav-item" data-section="settings" onclick="navigate('settings')">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <strong id="sidebar-name">Loading…</strong>
+      <span id="sidebar-email" class="text-muted"></span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div id="main-content">
+    <!-- Mobile top bar -->
+    <div id="top-bar">
+      <button id="hamburger" onclick="openSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <span id="top-bar-title">Life Planner Pro</span>
+    </div>
+    <!-- Section content renders here -->
+    <div id="app-content"></div>
+  </div>
+
+</div>
+
+<script>
+// PART 3: Supabase, auth, state, data sync, navigation, utilities
+
+/* ===== SUPABASE ===== */
+const SUPA_URL = 'https://ajxbatceyclfennrtbbz.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqeGJhdGNleWNsZmVubnJ0YmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTIwNTQsImV4cCI6MjA5MDMyODA1NH0.XgnxwnDsZdEBVB5diAbQJb1P-OIrha97j3gT_AGQww0';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+let currentUser = null;
+const saveTimers = {};
+
+/* ===== CONSTANTS ===== */
+const QUOTES = [
+  "The secret of getting ahead is getting started. — Mark Twain",
+  "You don't have to be great to start, but you have to start to be great. — Zig Ziglar",
+  "Progress, not perfection. — Unknown",
+  "Small steps every day lead to big changes. — Unknown",
+  "Discipline is choosing between what you want now and what you want most. — Augusta F. Kantra",
+  "Done is better than perfect. — Sheryl Sandberg",
+  "Your future self is watching you right now. — Unknown",
+  "Take care of your body. It's the only place you have to live. — Jim Rohn"
+];
+
+const PRESET_HABITS = [
+  {name:'Take medication',category:'health'},
+  {name:'Drink 8 glasses of water',category:'health'},
+  {name:'Exercise 30 min',category:'body'},
+  {name:'Meditate',category:'mind'},
+  {name:'Read 20 pages',category:'mind'},
+  {name:'Journal',category:'mind'},
+  {name:'Take vitamins',category:'health'},
+  {name:'Stretch',category:'body'},
+  {name:'No social media before 9am',category:'mind'},
+  {name:'Gratitude practice',category:'mind'},
+  {name:'Cold shower',category:'body'},
+  {name:'Walk 10k steps',category:'body'},
+  {name:'Sleep by 11pm',category:'health'},
+  {name:'No alcohol',category:'health'},
+  {name:'Healthy breakfast',category:'health'},
+  {name:'Call a friend/family',category:'social'},
+  {name:'Practice a skill',category:'productivity'},
+  {name:'Plan tomorrow',category:'productivity'},
+  {name:'Review goals',category:'productivity'},
+  {name:'Breathe deeply',category:'mind'}
+];
+
+const DAYS = ['mon','tue','wed','thu','fri','sat','sun'];
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ===== STATE ===== */
+let state = {
+  theme: 'blackwhite',
+  userName: '',
+  coverPhoto: '',
+  // Habits (shared across Home, Planner, Health)
+  habits: [],
+  morningRoutine: [],
+  nightRoutine: [],
+  // Planner
+  calendarEvents: [],
+  timeBlocks: {},
+  weeklyPlanner: {mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:''},
+  monthlyNotes: {},
+  yearlyNotes: {jan:'',feb:'',mar:'',apr:'',may:'',jun:'',jul:'',aug:'',sep:'',oct:'',nov:'',dec:''},
+  // Health
+  weight: {start:'',current:'',goal:'',log:[]},
+  fitnessGoals: [],
+  weeklyWorkouts: {mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:''},
+  workoutLog: [],
+  dailyHealth: {},
+  appointments: [],
+  // Mental
+  moodLog: [],
+  stressLog: [],
+  gratitudeLog: [],
+  selfCare: [],
+  // Meals
+  weeklyMeals: {},
+  groceryList: [],
+  mealPrepIdeas: [],
+  // Travel
+  trips: [],
+  // Finance
+  income: [],
+  taxInfo: {mode:'w2',salary:'',filing:'single',state:'CA',freelance:'',expenses:''},
+  budget: [
+    {id:'b1',name:'Housing',budget:'',spent:'',color:'#6c9bd2'},
+    {id:'b2',name:'Food',budget:'',spent:'',color:'#7bc67e'},
+    {id:'b3',name:'Transport',budget:'',spent:'',color:'#f0a742'},
+    {id:'b4',name:'Entertainment',budget:'',spent:'',color:'#c47ec4'},
+    {id:'b5',name:'Health',budget:'',spent:'',color:'#e87474'},
+    {id:'b6',name:'Other',budget:'',spent:'',color:'#888'}
+  ],
+  debts: [],
+  expenses: [],
+  savingsGoals: [],
+  bankAccounts: [],
+  // Career
+  tasks: [],
+  projects: [],
+  meetings: [],
+  careerVision: '',
+  skills: [],
+  reviews: [],
+  wins: [],
+  goals: [],
+  academics: {classes:[],assignments:[],studySessions:[]},
+  // Social
+  platforms: [],
+  contentCalendar: [],
+  brandDeals: [],
+  // Notes
+  journalEntries: [],
+  quickNotes: '',
+  ideas: []
+};
+
+// Map of section name → state keys it owns
+const SECTION_KEYS = {
+  settings: ['theme','userName','coverPhoto'],
+  habits:   ['habits','morningRoutine','nightRoutine'],
+  planner:  ['calendarEvents','timeBlocks','weeklyPlanner','monthlyNotes','yearlyNotes'],
+  health:   ['weight','fitnessGoals','weeklyWorkouts','workoutLog','dailyHealth','appointments'],
+  mental:   ['moodLog','stressLog','gratitudeLog','selfCare'],
+  meals:    ['weeklyMeals','groceryList','mealPrepIdeas'],
+  travel:   ['trips'],
+  finance:  ['income','taxInfo','budget','debts','expenses','savingsGoals','bankAccounts'],
+  career:   ['tasks','projects','meetings','careerVision','skills','reviews','wins','goals','academics'],
+  social:   ['platforms','contentCalendar','brandDeals'],
+  notes:    ['journalEntries','quickNotes','ideas']
+};
+
+/* ===== SAVE / LOAD ===== */
+function saveData(section, key) {
+  if (!currentUser) return;
+  clearTimeout(saveTimers[section + '_' + key]);
+  showSaving();
+  saveTimers[section + '_' + key] = setTimeout(async () => {
+    try {
+      const { error } = await sb.from('user_data').upsert({
+        user_id: currentUser.id,
+        section,
+        key,
+        value: JSON.stringify(state[key]),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,section,key' });
+      if (!error) showSaved();
+    } catch(e) { console.warn('Save error:', e); }
+  }, 500);
+}
+
+// Save all keys belonging to a section
+function saveSection(section) {
+  const keys = SECTION_KEYS[section] || [];
+  keys.forEach(k => saveData(section, k));
+}
+
+// Save a single key (auto-detect section)
+function save(key) {
+  for (const [sec, keys] of Object.entries(SECTION_KEYS)) {
+    if (keys.includes(key)) { saveData(sec, key); return; }
+  }
+}
+
+async function loadAllData() {
+  try {
+    const { data, error } = await sb.from('user_data').select('*').eq('user_id', currentUser.id);
+    if (data) {
+      data.forEach(row => {
+        try { state[row.key] = JSON.parse(row.value); } catch(e) {}
+      });
+    }
+  } catch(e) { console.warn('Load error:', e); }
+  initHabits();
+  applyTheme(state.theme || 'blackwhite');
+  updateSidebarUser();
+  renderSection(currentSection);
+}
+
+/* ===== HABIT INIT ===== */
+function initHabits() {
+  if (!state.habits || state.habits.length === 0) {
+    state.habits = PRESET_HABITS.map((h, i) => ({
+      id: 'h' + (i + 1),
+      name: h.name,
+      category: h.category,
+      preset: true,
+      active: true,
+      schedule: {mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false},
+      completedDates: [],
+      streak: 0
+    }));
+  }
+  if (!Array.isArray(state.morningRoutine)) state.morningRoutine = [];
+  if (!Array.isArray(state.nightRoutine)) state.nightRoutine = [];
+}
+
+/* ===== SAVE INDICATOR ===== */
+let savedTimer = null;
+function showSaving() {
+  const el = document.getElementById('save-indicator');
+  if (!el) return;
+  clearTimeout(savedTimer);
+  el.textContent = 'Saving…';
+  el.style.display = 'block';
+}
+function showSaved() {
+  const el = document.getElementById('save-indicator');
+  if (!el) return;
+  el.textContent = 'Saved ✓';
+  savedTimer = setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+/* ===== AUTH ===== */
+function showAuthTab(tab) {
+  document.getElementById('auth-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('auth-signup').style.display = tab === 'signup' ? 'block' : 'none';
+  document.querySelectorAll('.auth-tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
+  });
+  clearAuthMessages();
+}
+
+function setAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+function setAuthMsg(msg) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+function clearAuthMessages() {
+  setAuthError(''); setAuthMsg('');
+}
+
+async function doLogin() {
+  clearAuthMessages();
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if (!email || !pass) { setAuthError('Please fill in all fields.'); return; }
+  setAuthMsg('Signing in…');
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { setAuthMsg(''); setAuthError(error.message); }
+}
+
+async function doSignup() {
+  clearAuthMessages();
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-password').value;
+  if (!name || !email || !pass) { setAuthError('Please fill in all fields.'); return; }
+  if (pass.length < 6) { setAuthError('Password must be at least 6 characters.'); return; }
+  setAuthMsg('Creating account…');
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { setAuthMsg(''); setAuthError(error.message); }
+  else {
+    state.userName = name;
+    setAuthMsg('Account created! Check your email to confirm, or sign in now.');
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  clearAuthMessages();
+}
+
+/* ===== AUTH STATE LISTENER ===== */
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session && session.user) {
+    currentUser = session.user;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    await loadAllData();
+  } else {
+    currentUser = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+});
+
+/* ===== NAVIGATION ===== */
+let currentSection = 'home';
+let currentTabs = {}; // tracks active sub-tab per section
+
+function navigate(section) {
+  currentSection = section;
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  // Update mobile title
+  const titles = {home:'Home',planner:'Planner',habits:'Habits & Routines',health:'Health & Wellness',
+    mental:'Mental Health',meals:'Meal Planning',travel:'Travel',finance:'Finance',
+    career:'Career & Goals',social:'Social Media',notes:'Notes & Journal',settings:'Settings'};
+  const tb = document.getElementById('top-bar-title');
+  if (tb) tb.textContent = titles[section] || 'Life Planner Pro';
+  closeSidebar();
+  renderSection(section);
+}
+
+function renderSection(section) {
+  const el = document.getElementById('app-content');
+  if (!el) return;
+  const fns = {
+    home: renderHome, planner: renderPlanner, habits: renderHabits,
+    health: renderHealth, mental: renderMental, meals: renderMeals,
+    travel: renderTravel, finance: renderFinance, career: renderCareer,
+    social: renderSocial, notes: renderNotes, settings: renderSettings
+  };
+  const fn = fns[section];
+  if (fn) { el.innerHTML = fn(); afterRender(section); }
+}
+
+// Re-init section-specific logic after render
+function afterRender(section) {
+  if (section === 'home') initHome();
+  if (section === 'planner') initPlanner();
+  if (section === 'habits') initHabitsSection();
+  if (section === 'health') initHealth();
+  if (section === 'mental') initMental();
+  if (section === 'meals') initMeals();
+  if (section === 'travel') initTravel();
+  if (section === 'finance') initFinance();
+  if (section === 'career') initCareer();
+  if (section === 'social') initSocial();
+  if (section === 'notes') initNotes();
+  if (section === 'settings') initSettings();
+}
+
+/* ===== THEME ===== */
+function applyTheme(t) {
+  state.theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('sidebar').style.borderRight = '';
+}
+
+/* ===== SIDEBAR MOBILE ===== */
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+/* ===== SIDEBAR USER ===== */
+function updateSidebarUser() {
+  const nameEl = document.getElementById('sidebar-name');
+  const emailEl = document.getElementById('sidebar-email');
+  if (nameEl) nameEl.textContent = state.userName || 'Welcome!';
+  if (emailEl) emailEl.textContent = currentUser ? currentUser.email : '';
+}
+
+/* ===== UTILITIES ===== */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function progressClass(pct) {
+  if (pct >= 80) return 'progress-green';
+  if (pct >= 40) return 'progress-yellow';
+  return 'progress-red';
+}
+
+function badgeForPriority(p) {
+  if (p === 'High') return 'badge-red';
+  if (p === 'Medium') return 'badge-yellow';
+  return 'badge-green';
+}
+
+function badgeForStatus(s) {
+  const map = {
+    'Todo':'badge-gray','In Progress':'badge-blue','Done':'badge-green',
+    'Idea':'badge-gray','Drafted':'badge-yellow','Scheduled':'badge-blue','Published':'badge-green',
+    'Negotiating':'badge-yellow','Confirmed':'badge-blue','Completed':'badge-green',
+    'Active':'badge-blue','Paused':'badge-yellow','Completed':'badge-green'
+  };
+  return map[s] || 'badge-gray';
+}
+
+// Calculate streak for a habit
+function calcStreak(habit) {
+  if (!habit.completedDates || !habit.completedDates.length) return 0;
+  const sorted = [...habit.completedDates].sort().reverse();
+  let streak = 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let check = new Date(today);
+  for (let i = 0; i < 365; i++) {
+    const ds = check.getFullYear() + '-' + String(check.getMonth()+1).padStart(2,'0') + '-' + String(check.getDate()).padStart(2,'0');
+    if (sorted.includes(ds)) { streak++; check.setDate(check.getDate()-1); }
+    else if (i === 0) { check.setDate(check.getDate()-1); } // allow today not done yet
+    else break;
+  }
+  return streak;
+}
+
+// Is habit completed today?
+function isHabitDoneToday(habit) {
+  return habit.completedDates && habit.completedDates.includes(todayStr());
+}
+
+// Toggle habit completion for today
+function toggleHabitToday(habitId) {
+  const h = state.habits.find(x => x.id === habitId);
+  if (!h) return;
+  const today = todayStr();
+  if (!h.completedDates) h.completedDates = [];
+  const idx = h.completedDates.indexOf(today);
+  if (idx > -1) h.completedDates.splice(idx, 1);
+  else h.completedDates.push(today);
+  h.streak = calcStreak(h);
+  save('habits');
+  // Re-render current section if it uses habits
+  if (['home','habits','health'].includes(currentSection)) renderSection(currentSection);
+}
+
+// Export all data as JSON
+function exportData() {
+  const blob = new Blob([JSON.stringify({state, exportedAt: new Date().toISOString()}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'life-planner-backup.json';
+  a.click();
+}
+
+// Reset password
+async function sendPasswordReset() {
+  if (!currentUser) return;
+  const { error } = await sb.auth.resetPasswordForEmail(currentUser.email);
+  if (error) alert('Error: ' + error.message);
+  else alert('Password reset email sent to ' + currentUser.email);
+}
+// PART 4a: Section renderers — Home, Planner, Habits, Health, Mental, Meals, Travel
+
+/* ===========================
+   HOME
+=========================== */
+let quoteIdx = 0, quoteTimer = null;
+
+function renderHome() {
+  const today = todayStr();
+  const activeHabits = (state.habits || []).filter(h => h.active);
+  const doneTodayCount = activeHabits.filter(h => isHabitDoneToday(h)).length;
+  const tasksDue = (state.tasks || []).filter(t => t.dueDate === today && t.status !== 'Done').length;
+  const upcoming = (state.calendarEvents || [])
+    .filter(e => e.date >= today)
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .slice(0, 5);
+  const todayHealth = (state.dailyHealth || {})[today] || {};
+
+  const habitRows = activeHabits.slice(0, 10).map(h => {
+    const done = isHabitDoneToday(h);
+    return `<div class="habit-item ${done ? 'completed' : ''}">
+      <div class="habit-check ${done ? 'checked' : ''}" onclick="toggleHabitToday('${h.id}')">
+        ${done ? '✓' : ''}
+      </div>
+      <span class="habit-name ${done ? 'done' : ''}">${esc(h.name)}</span>
+      <span class="habit-streak">🔥 ${calcStreak(h)}</span>
+    </div>`;
+  }).join('');
+
+  const upcomingRows = upcoming.length
+    ? upcoming.map(e => `<div class="flex items-center gap-2 mb-2">
+        <span class="text-sm text-muted">${esc(e.date)}</span>
+        <span style="flex:1;font-size:13.5px">${esc(e.title)}</span>
+        ${e.color ? `<span style="width:8px;height:8px;border-radius:50%;background:${esc(e.color)};display:inline-block"></span>` : ''}
+      </div>`).join('')
+    : '<p class="text-muted text-sm">No upcoming events. Add some in Planner!</p>';
+
+  return `
+  <div class="section-header flex justify-between items-center">
+    <div>
+      <h1>${greeting()}, ${esc(state.userName) || 'there'}!</h1>
+      <p>${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+    </div>
+  </div>
+
+  <!-- Cover Photo -->
+  <div class="cover-section" id="cover-section">
+    ${state.coverPhoto
+      ? `<img src="${state.coverPhoto}" class="cover-img" alt="Cover"><button class="cover-edit-btn" onclick="document.getElementById('cover-upload').click()">✏️ Change</button>`
+      : `<div class="cover-placeholder" onclick="document.getElementById('cover-upload').click()">📷 Add a cover photo</div>`
+    }
+    <input type="file" id="cover-upload" accept="image/*" style="display:none" onchange="handleCoverUpload(this)">
+  </div>
+
+  <!-- Quote -->
+  <div class="quote-box">
+    <div class="quote-text" id="home-quote">${esc(QUOTES[0])}</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid-4 mb-4">
+    <div class="stat-card"><div class="stat-value">${doneTodayCount}/${activeHabits.length}</div><div class="stat-label">Habits Today</div></div>
+    <div class="stat-card"><div class="stat-value">${tasksDue}</div><div class="stat-label">Tasks Due</div></div>
+    <div class="stat-card"><div class="stat-value">${todayHealth.water || '—'}</div><div class="stat-label">Water (glasses)</div></div>
+    <div class="stat-card"><div class="stat-value">${todayHealth.sleep || '—'}</div><div class="stat-label">Sleep (hrs)</div></div>
+  </div>
+
+  <!-- Habits Today + Upcoming -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">✅ Habits Today</div>
+      ${habitRows || '<p class="text-muted text-sm">No habits yet. Set them up in Habits & Routines!</p>'}
+      ${activeHabits.length > 10 ? `<p class="text-sm text-muted mt-2">+${activeHabits.length-10} more in Habits section</p>` : ''}
+    </div>
+    <div class="card">
+      <div class="card-title">📅 Upcoming Events</div>
+      ${upcomingRows}
+    </div>
+  </div>`;
+}
+
+function initHome() {
+  clearInterval(quoteTimer);
+  quoteIdx = 0;
+  quoteTimer = setInterval(() => {
+    quoteIdx = (quoteIdx + 1) % QUOTES.length;
+    const el = document.getElementById('home-quote');
+    if (!el) { clearInterval(quoteTimer); return; }
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = QUOTES[quoteIdx]; el.style.opacity = '1'; }, 400);
+  }, 7000);
+}
+
+function handleCoverUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.coverPhoto = e.target.result;
+    save('coverPhoto');
+    renderSection('home');
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ===========================
+   PLANNER
+=========================== */
+function renderPlanner() {
+  const tab = currentTabs.planner || 'daily';
+  const tabs = ['Daily','Weekly','Monthly','Yearly','Calendar'];
+  const tbar = tabs.map(t => `<button class="tab-btn ${tab===t.toLowerCase()?'active':''}" onclick="setPlannerTab('${t.toLowerCase()}')">${t}</button>`).join('');
+  return `
+  <div class="section-header"><h1>Planner</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="planner-body">${renderPlannerTab(tab)}</div>`;
+}
+
+function setPlannerTab(tab) {
+  currentTabs.planner = tab;
+  const el = document.getElementById('planner-body');
+  if (el) el.innerHTML = renderPlannerTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === tab));
+  if (tab === 'calendar') initCalendar();
+}
+
+function renderPlannerTab(tab) {
+  if (tab === 'daily') return renderPlannerDaily();
+  if (tab === 'weekly') return renderPlannerWeekly();
+  if (tab === 'monthly') return renderPlannerMonthly();
+  if (tab === 'yearly') return renderPlannerYearly();
+  if (tab === 'calendar') return renderPlannerCalendar();
+  return '';
+}
+
+function renderPlannerDaily() {
+  const today = todayStr();
+  const dateVal = currentTabs.plannerDate || today;
+  const blocks = (state.timeBlocks[dateVal] || []);
+  const colors = ['#f87171','#fbbf24','#34d399','#60a5fa','#c084fc','#f9a8d4'];
+  const blockRows = blocks.map((b, i) => `
+    <div class="time-block">
+      <div class="block-dot" style="background:${b.color||'#888'}"></div>
+      <input class="input" style="width:90px;flex-shrink:0" type="text" value="${esc(b.time)}" placeholder="8:00 AM"
+        onchange="updateBlock('${dateVal}',${i},'time',this.value)">
+      <input class="input flex-1" type="text" value="${esc(b.task)}" placeholder="Task or event…"
+        onchange="updateBlock('${dateVal}',${i},'task',this.value)">
+      <select class="select" style="width:100px;flex-shrink:0" onchange="updateBlock('${dateVal}',${i},'color',this.value)">
+        ${colors.map(c => `<option value="${c}" ${b.color===c?'selected':''} style="background:${c}">${c}</option>`).join('')}
+      </select>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeBlock('${dateVal}',${i})">✕</button>
+    </div>`).join('');
+  const activeHabits = (state.habits||[]).filter(h=>h.active).slice(0,8);
+  const habitMini = activeHabits.map(h => {
+    const done = h.completedDates && h.completedDates.includes(dateVal);
+    return `<div class="habit-item ${done?'completed':''}" style="margin-bottom:6px">
+      <div class="habit-check ${done?'checked':''}" onclick="toggleHabitToday('${h.id}')">
+        ${done?'✓':''}
+      </div>
+      <span class="habit-name ${done?'done':''}" style="font-size:13px">${esc(h.name)}</span>
+    </div>`;
+  }).join('');
+  return `
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <div class="card-title" style="margin-bottom:0">Time Blocks</div>
+          <input class="input" type="text" value="${dateVal}" style="width:140px"
+            placeholder="YYYY-MM-DD" onchange="setPlannerDate(this.value)">
+        </div>
+        ${blockRows}
+        <button class="btn btn-secondary btn-sm mt-2" onclick="addBlock('${dateVal}')">+ Add Time Block</button>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Today's Habits</div>
+        ${habitMini || '<p class="text-muted text-sm">Set up habits in Habits & Routines.</p>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+function setPlannerDate(val) {
+  currentTabs.plannerDate = val;
+  const el = document.getElementById('planner-body');
+  if (el) el.innerHTML = renderPlannerTab(currentTabs.planner || 'daily');
+}
+
+function addBlock(date) {
+  if (!state.timeBlocks[date]) state.timeBlocks[date] = [];
+  state.timeBlocks[date].push({time:'',task:'',color:'#60a5fa'});
+  save('timeBlocks');
+  setPlannerDate(date);
+}
+
+function removeBlock(date, idx) {
+  state.timeBlocks[date].splice(idx, 1);
+  save('timeBlocks');
+  setPlannerDate(date);
+}
+
+function updateBlock(date, idx, field, val) {
+  if (!state.timeBlocks[date]) return;
+  state.timeBlocks[date][idx][field] = val;
+  save('timeBlocks');
+}
+
+function renderPlannerWeekly() {
+  const wp = state.weeklyPlanner || {};
+  return `<div class="card">
+    <div class="card-title">Weekly Planner</div>
+    <div class="grid-7">${DAYS.map((d,i)=>`
+      <div>
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;text-align:center">${DAY_LABELS[i]}</div>
+        <textarea class="textarea" style="min-height:140px;font-size:13px" placeholder="Notes for ${DAY_LABELS[i]}…"
+          onchange="updateWeeklyPlan('${d}',this.value)">${esc(wp[d]||'')}</textarea>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function updateWeeklyPlan(day, val) {
+  state.weeklyPlanner[day] = val;
+  save('weeklyPlanner');
+}
+
+function renderPlannerMonthly() {
+  const mn = state.monthlyNotes || {};
+  const now = new Date();
+  const key = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  return `<div class="card">
+    <div class="card-title">Monthly Notes — ${MONTHS[now.getMonth()]} ${now.getFullYear()}</div>
+    <textarea class="textarea w-full" style="min-height:300px" placeholder="Monthly goals, reflections, important dates…"
+      onchange="state.monthlyNotes['${key}']=this.value;save('monthlyNotes')">${esc(mn[key]||'')}</textarea>
+  </div>`;
+}
+
+function renderPlannerYearly() {
+  const yn = state.yearlyNotes || {};
+  const monthKeys = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  return `<div class="card">
+    <div class="card-title">Yearly Overview</div>
+    <div class="grid-3">${MONTH_SHORT.map((m,i)=>`
+      <div>
+        <label class="form-group" style="display:block"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">${m}</span>
+        <textarea class="textarea" style="min-height:80px;font-size:12.5px;margin-top:4px" placeholder="Goals & notes…"
+          onchange="state.yearlyNotes['${monthKeys[i]}']=this.value;save('yearlyNotes')">${esc(yn[monthKeys[i]]||'')}</textarea>
+        </label>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderPlannerCalendar() {
+  const now = new Date();
+  const y = currentTabs.calYear || now.getFullYear();
+  const m = currentTabs.calMonth !== undefined ? currentTabs.calMonth : now.getMonth();
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = todayStr();
+  const yearOpts = [];
+  for (let yr=2020;yr<=2050;yr++) yearOpts.push(`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`);
+  let cells = '';
+  const offset = firstDay === 0 ? 6 : firstDay - 1; // Monday-start
+  for (let i=0;i<offset;i++) cells += `<div class="cal-day other-month"></div>`;
+  for (let d=1;d<=daysInMonth;d++) {
+    const ds = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday = ds === today;
+    const evts = (state.calendarEvents||[]).filter(e=>e.date===ds);
+    cells += `<div class="cal-day ${isToday?'today':''}" onclick="openCalDay('${ds}')">
+      <div class="cal-day-num">${d}</div>
+      ${evts.slice(0,2).map(e=>`<div class="cal-event-dot" style="background:${e.color||'var(--accent)'}">${esc(e.title)}</div>`).join('')}
+      ${evts.length>2?`<div class="text-sm text-muted">+${evts.length-2}</div>`:''}
+    </div>`;
+  }
+  return `
+  <div class="card">
+    <div class="cal-nav">
+      <button class="btn btn-ghost btn-sm" onclick="shiftCal(-1)">← Prev</button>
+      <h3>${MONTHS[m]} <select class="select" style="width:90px;display:inline-block;padding:4px 8px" onchange="setCalYear(+this.value)">${yearOpts.join('')}</select></h3>
+      <button class="btn btn-ghost btn-sm" onclick="shiftCal(1)">Next →</button>
+    </div>
+    <div class="cal-header">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}</div>
+    <div class="calendar-grid">${cells}</div>
+  </div>
+  <div id="cal-event-panel" class="card" style="display:none"></div>`;
+}
+
+function shiftCal(dir) {
+  let m = currentTabs.calMonth !== undefined ? currentTabs.calMonth : new Date().getMonth();
+  let y = currentTabs.calYear || new Date().getFullYear();
+  m += dir;
+  if (m < 0) { m = 11; y--; }
+  if (m > 11) { m = 0; y++; }
+  currentTabs.calMonth = m; currentTabs.calYear = y;
+  const el = document.getElementById('planner-body');
+  if (el) el.innerHTML = renderPlannerCalendar();
+}
+
+function setCalYear(y) {
+  currentTabs.calYear = y;
+  const el = document.getElementById('planner-body');
+  if (el) el.innerHTML = renderPlannerCalendar();
+}
+
+function openCalDay(ds) {
+  const panel = document.getElementById('cal-event-panel');
+  if (!panel) return;
+  const evts = (state.calendarEvents||[]).filter(e=>e.date===ds);
+  const list = evts.map((e,i)=>`<div class="flex items-center gap-2 mb-2">
+    <span style="width:10px;height:10px;border-radius:50%;background:${e.color||'#888'};display:inline-block;flex-shrink:0"></span>
+    <span style="flex:1">${esc(e.title)}</span>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removeCalEvent('${e.id}')">✕</button>
+  </div>`).join('');
+  panel.style.display = 'block';
+  panel.innerHTML = `<div class="card-title">Events for ${ds}</div>
+    ${list || '<p class="text-muted text-sm">No events.</p>'}
+    <div class="form-row mt-2">
+      <input class="input flex-1" type="text" id="new-evt-title" placeholder="Event title">
+      <select class="select" id="new-evt-color" style="width:100px">
+        <option value="#60a5fa">Blue</option><option value="#f87171">Red</option>
+        <option value="#34d399">Green</option><option value="#fbbf24">Yellow</option>
+        <option value="#c084fc">Purple</option><option value="#f9a8d4">Pink</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addCalEvent('${ds}')">Add</button>
+    </div>`;
+}
+
+function addCalEvent(ds) {
+  const t = document.getElementById('new-evt-title').value.trim();
+  const c = document.getElementById('new-evt-color').value;
+  if (!t) return;
+  if (!Array.isArray(state.calendarEvents)) state.calendarEvents = [];
+  state.calendarEvents.push({id:uid(), date:ds, title:t, color:c});
+  save('calendarEvents');
+  openCalDay(ds);
+}
+
+function removeCalEvent(id) {
+  state.calendarEvents = (state.calendarEvents||[]).filter(e=>e.id!==id);
+  save('calendarEvents');
+  const panel = document.getElementById('cal-event-panel');
+  if (panel) panel.innerHTML = '<p class="text-muted text-sm">Event removed.</p>';
+  // refresh calendar
+  const el = document.getElementById('planner-body');
+  if (el) el.innerHTML = renderPlannerCalendar();
+}
+
+function initPlanner() {
+  if (!currentTabs.planner) currentTabs.planner = 'daily';
+}
+
+function initCalendar() {
+  // already rendered inline
+}
+
+/* ===========================
+   HABITS & ROUTINES
+=========================== */
+function renderHabits() {
+  const tab = currentTabs.habits || 'habits';
+  const tbar = ['Habits','Morning Routine','Night Routine','Streaks'].map(t=>{
+    const key = t.toLowerCase().replace(/ /g,'_');
+    return `<button class="tab-btn ${tab===key?'active':''}" onclick="setHabitsTab('${key}')">${t}</button>`;
+  }).join('');
+  return `<div class="section-header"><h1>Habits & Routines</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="habits-body">${renderHabitsTab(tab)}</div>`;
+}
+
+function setHabitsTab(tab) {
+  currentTabs.habits = tab;
+  const el = document.getElementById('habits-body');
+  if (el) el.innerHTML = renderHabitsTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b => {
+    const k = b.textContent.toLowerCase().replace(/ /g,'_');
+    b.classList.toggle('active', k === tab);
+  });
+}
+
+function renderHabitsTab(tab) {
+  if (tab === 'morning_routine') return renderRoutine('morning');
+  if (tab === 'night_routine') return renderRoutine('night');
+  if (tab === 'streaks') return renderStreaks();
+  return renderHabitsList();
+}
+
+function renderHabitsList() {
+  const habits = state.habits || [];
+  const today = todayStr();
+  const rows = habits.map(h => {
+    const done = isHabitDoneToday(h);
+    return `<div class="habit-item ${done?'completed':''}">
+      <div class="habit-check ${done?'checked':''}" onclick="toggleHabitToday('${h.id}')">
+        ${done?'✓':''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="flex items-center gap-2">
+          <span class="habit-name ${done?'done':''}">${esc(h.name)}</span>
+          <span class="habit-cat">${h.category}</span>
+        </div>
+        <div class="flex gap-2 mt-1" style="flex-wrap:wrap">
+          ${DAYS.map((d,i)=>`<label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px">
+            <input type="checkbox" ${(h.schedule||{})[d]?'checked':''} onchange="toggleHabitDay('${h.id}','${d}',this.checked)">
+            ${DAY_LABELS[i].slice(0,2)}
+          </label>`).join('')}
+        </div>
+      </div>
+      <span class="habit-streak">🔥 ${calcStreak(h)}</span>
+      <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <input type="checkbox" ${h.active?'checked':''} onchange="toggleHabitActive('${h.id}',this.checked)">Active
+      </label>
+      ${!h.preset ? `<button class="btn btn-danger btn-sm btn-icon" onclick="deleteHabit('${h.id}')">✕</button>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">All Habits</div>
+      <button class="btn btn-primary btn-sm" onclick="showAddHabitForm()">+ Custom Habit</button>
+    </div>
+    <div id="add-habit-form" style="display:none" class="card mb-3" style="background:var(--bg)">
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input class="input" type="text" id="new-habit-name" placeholder="Habit name"></div>
+        <div class="form-group"><label>Category</label>
+          <select class="select" id="new-habit-cat">
+            <option>health</option><option>mind</option><option>body</option><option>social</option><option>productivity</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addCustomHabit()">Add Habit</button>
+      <button class="btn btn-ghost btn-sm ml-2" onclick="document.getElementById('add-habit-form').style.display='none'">Cancel</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No habits yet.</p>'}
+  </div>`;
+}
+
+function showAddHabitForm() {
+  const el = document.getElementById('add-habit-form');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addCustomHabit() {
+  const name = document.getElementById('new-habit-name').value.trim();
+  const cat = document.getElementById('new-habit-cat').value;
+  if (!name) return;
+  state.habits.push({
+    id: uid(), name, category: cat, preset: false, active: true,
+    schedule:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false},
+    completedDates:[], streak:0
+  });
+  save('habits');
+  setHabitsTab('habits');
+}
+
+function toggleHabitDay(id, day, checked) {
+  const h = state.habits.find(x=>x.id===id);
+  if (!h) return;
+  if (!h.schedule) h.schedule = {};
+  h.schedule[day] = checked;
+  save('habits');
+}
+
+function toggleHabitActive(id, active) {
+  const h = state.habits.find(x=>x.id===id);
+  if (!h) return;
+  h.active = active;
+  save('habits');
+}
+
+function deleteHabit(id) {
+  state.habits = state.habits.filter(x=>x.id!==id);
+  save('habits');
+  setHabitsTab('habits');
+}
+
+function renderRoutine(type) {
+  const key = type === 'morning' ? 'morningRoutine' : 'nightRoutine';
+  const items = state[key] || [];
+  const rows = items.map((item, i)=>`<div class="routine-item">
+    <div class="routine-arrows">
+      <button class="rarrow" onclick="moveRoutineItem('${key}',${i},-1)">▲</button>
+      <button class="rarrow" onclick="moveRoutineItem('${key}',${i},1)">▼</button>
+    </div>
+    <input type="text" value="${esc(item)}" placeholder="Routine step…"
+      onchange="updateRoutineItem('${key}',${i},this.value)">
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removeRoutineItem('${key}',${i})">✕</button>
+  </div>`).join('');
+  const label = type === 'morning' ? '☀️ Morning' : '🌙 Night';
+  return `<div class="card">
+    <div class="card-title">${label} Routine</div>
+    <div id="routine-list-${type}">${rows}</div>
+    <button class="btn btn-secondary btn-sm mt-2" onclick="addRoutineItem('${key}','${type}')">+ Add Step</button>
+  </div>`;
+}
+
+function addRoutineItem(key, type) {
+  if (!Array.isArray(state[key])) state[key] = [];
+  state[key].push('');
+  save(key);
+  const el = document.getElementById(`routine-list-${type}`);
+  if (el) el.innerHTML = (state[key]).map((item,i)=>`<div class="routine-item">
+    <div class="routine-arrows">
+      <button class="rarrow" onclick="moveRoutineItem('${key}',${i},-1)">▲</button>
+      <button class="rarrow" onclick="moveRoutineItem('${key}',${i},1)">▼</button>
+    </div>
+    <input type="text" value="${esc(item)}" placeholder="Routine step…"
+      onchange="updateRoutineItem('${key}',${i},this.value)">
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removeRoutineItem('${key}',${i})">✕</button>
+  </div>`).join('');
+}
+
+function updateRoutineItem(key, i, val) {
+  state[key][i] = val; save(key);
+}
+
+function moveRoutineItem(key, i, dir) {
+  const arr = state[key];
+  const j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  save(key);
+  setHabitsTab(currentTabs.habits);
+}
+
+function removeRoutineItem(key, i) {
+  state[key].splice(i, 1);
+  save(key);
+  setHabitsTab(currentTabs.habits);
+}
+
+function renderStreaks() {
+  const active = (state.habits||[]).filter(h=>h.active);
+  const rows = active.map(h=>`<tr>
+    <td>${esc(h.name)}</td>
+    <td><span class="habit-cat">${h.category}</span></td>
+    <td style="font-weight:700">🔥 ${calcStreak(h)}</td>
+    <td>${h.completedDates ? h.completedDates.length : 0} total</td>
+    <td><span class="badge ${isHabitDoneToday(h)?'badge-green':'badge-gray'}">${isHabitDoneToday(h)?'Done':'Pending'}</span></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="card-title">Streak Tracker</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Habit</th><th>Category</th><th>Streak</th><th>Total</th><th>Today</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No active habits.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function initHabitsSection() {
+  if (!currentTabs.habits) currentTabs.habits = 'habits';
+}
+
+/* ===========================
+   HEALTH & WELLNESS
+=========================== */
+function renderHealth() {
+  const tab = currentTabs.health || 'weight';
+  const tabs = ['Weight','Fitness','Workouts','Daily','Appointments'];
+  const tbar = tabs.map(t=>`<button class="tab-btn ${tab===t.toLowerCase()?'active':''}" onclick="setHealthTab('${t.toLowerCase()}')">${t}</button>`).join('');
+  return `<div class="section-header"><h1>Health & Wellness</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="health-body">${renderHealthTab(tab)}</div>`;
+}
+
+function setHealthTab(tab) {
+  currentTabs.health = tab;
+  const el = document.getElementById('health-body');
+  if (el) el.innerHTML = renderHealthTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase()===tab));
+}
+
+function renderHealthTab(tab) {
+  if (tab === 'weight') return renderHealthWeight();
+  if (tab === 'fitness') return renderHealthFitness();
+  if (tab === 'workouts') return renderHealthWorkouts();
+  if (tab === 'daily') return renderHealthDaily();
+  if (tab === 'appointments') return renderHealthAppts();
+  return '';
+}
+
+function renderHealthWeight() {
+  const w = state.weight || {};
+  const start = parseFloat(w.start) || 0;
+  const current = parseFloat(w.current) || 0;
+  const goal = parseFloat(w.goal) || 0;
+  let pct = 0, cls = 'progress-red';
+  if (start && goal && start !== goal) {
+    pct = Math.min(100, Math.max(0, Math.round(Math.abs((current - start) / (goal - start)) * 100)));
+    cls = pct >= 80 ? 'progress-green' : pct >= 40 ? 'progress-yellow' : 'progress-red';
+  }
+  const logRows = (w.log||[]).map((e,i)=>`<tr>
+    <td>${esc(e.date)}</td>
+    <td>${esc(e.weight)}</td>
+    <td>${esc(e.note||'')}</td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeWeightLog(${i})">✕</button></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="card-title">Weight Tracker</div>
+    <div class="form-row">
+      <div class="form-group"><label>Start Weight</label>
+        <input class="input" type="text" value="${esc(w.start||'')}" placeholder="lbs / kg"
+          onchange="state.weight.start=this.value;save('weight')">
+      </div>
+      <div class="form-group"><label>Current Weight</label>
+        <input class="input" type="text" value="${esc(w.current||'')}" placeholder="lbs / kg"
+          onchange="state.weight.current=this.value;save('weight')">
+      </div>
+      <div class="form-group"><label>Goal Weight</label>
+        <input class="input" type="text" value="${esc(w.goal||'')}" placeholder="lbs / kg"
+          onchange="state.weight.goal=this.value;save('weight')">
+      </div>
+    </div>
+    ${start&&goal ? `<div class="mb-3">
+      <div class="flex justify-between text-sm text-muted mb-1"><span>Progress to goal</span><span>${pct}%</span></div>
+      <div class="progress-wrap"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>` : ''}
+    <div class="divider"></div>
+    <div class="flex justify-between items-center mb-3">
+      <strong>Weight Log</strong>
+      <button class="btn btn-primary btn-sm" onclick="showAddWeightForm()">+ Log Weight</button>
+    </div>
+    <div id="add-weight-form" style="display:none" class="mb-3">
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input class="input" type="text" id="wl-date" placeholder="YYYY-MM-DD" value="${todayStr()}"></div>
+        <div class="form-group"><label>Weight</label><input class="input" type="text" id="wl-weight" placeholder="lbs / kg"></div>
+        <div class="form-group"><label>Note</label><input class="input" type="text" id="wl-note" placeholder="Optional"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addWeightLog()">Save</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Weight</th><th>Note</th><th></th></tr></thead>
+      <tbody>${logRows||'<tr><td colspan="4" class="text-muted">No entries yet.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function showAddWeightForm() {
+  const el = document.getElementById('add-weight-form');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addWeightLog() {
+  const date = document.getElementById('wl-date').value.trim();
+  const weight = document.getElementById('wl-weight').value.trim();
+  const note = document.getElementById('wl-note').value.trim();
+  if (!date || !weight) return;
+  if (!Array.isArray(state.weight.log)) state.weight.log = [];
+  state.weight.log.push({date, weight, note});
+  state.weight.current = weight;
+  save('weight');
+  setHealthTab('weight');
+}
+
+function removeWeightLog(i) {
+  state.weight.log.splice(i, 1);
+  save('weight');
+  setHealthTab('weight');
+}
+
+function renderHealthFitness() {
+  const goals = state.fitnessGoals || [];
+  const rows = goals.map((g,i)=>`<div class="card mb-2">
+    <div class="flex justify-between items-center mb-2">
+      <input class="input flex-1 mr-2" type="text" value="${esc(g.name)}" placeholder="Goal name"
+        onchange="state.fitnessGoals[${i}].name=this.value;save('fitnessGoals')">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeFitnessGoal(${i})">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Target</label>
+        <input class="input" type="text" value="${esc(g.target||'')}" placeholder="e.g. Run 5k"
+          onchange="state.fitnessGoals[${i}].target=this.value;save('fitnessGoals')">
+      </div>
+      <div class="form-group"><label>Progress</label>
+        <input class="input" type="text" value="${esc(g.progress||'')}" placeholder="e.g. 3.2k"
+          onchange="state.fitnessGoals[${i}].progress=this.value;save('fitnessGoals')">
+      </div>
+      <div class="form-group"><label>Notes</label>
+        <input class="input" type="text" value="${esc(g.notes||'')}"
+          onchange="state.fitnessGoals[${i}].notes=this.value;save('fitnessGoals')">
+      </div>
+    </div>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Fitness Goals</div>
+      <button class="btn btn-primary btn-sm" onclick="addFitnessGoal()">+ Add Goal</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No fitness goals yet.</p>'}
+  </div>`;
+}
+
+function addFitnessGoal() {
+  if (!Array.isArray(state.fitnessGoals)) state.fitnessGoals = [];
+  state.fitnessGoals.push({id:uid(),name:'',target:'',progress:'',notes:''});
+  save('fitnessGoals');
+  setHealthTab('fitness');
+}
+
+function removeFitnessGoal(i) {
+  state.fitnessGoals.splice(i,1);
+  save('fitnessGoals');
+  setHealthTab('fitness');
+}
+
+function renderHealthWorkouts() {
+  const ww = state.weeklyWorkouts || {};
+  const weekCols = DAYS.map((d,i)=>`<div>
+    <div style="font-weight:700;font-size:12px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;text-align:center">${DAY_LABELS[i]}</div>
+    <textarea class="textarea" style="min-height:100px;font-size:12.5px" placeholder="Workout plan…"
+      onchange="state.weeklyWorkouts['${d}']=this.value;save('weeklyWorkouts')">${esc(ww[d]||'')}</textarea>
+  </div>`).join('');
+
+  const log = state.workoutLog || [];
+  const logRows = log.map((e,i)=>`<tr>
+    <td>${esc(e.date)}</td><td>${esc(e.type)}</td><td>${esc(e.duration)}</td><td>${esc(e.notes||'')}</td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeWorkoutLog(${i})">✕</button></td>
+  </tr>`).join('');
+
+  return `<div class="card mb-3">
+    <div class="card-title">Weekly Workout Planner</div>
+    <div class="grid-7">${weekCols}</div>
+  </div>
+  <div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Workout Log</div>
+      <button class="btn btn-primary btn-sm" onclick="showWorkoutForm()">+ Log Workout</button>
+    </div>
+    <div id="workout-form" style="display:none" class="mb-3">
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input class="input" type="text" id="wf-date" placeholder="YYYY-MM-DD" value="${todayStr()}"></div>
+        <div class="form-group"><label>Type</label><input class="input" type="text" id="wf-type" placeholder="Running, Weights…"></div>
+        <div class="form-group"><label>Duration</label><input class="input" type="text" id="wf-duration" placeholder="45 min"></div>
+        <div class="form-group"><label>Notes</label><input class="input" type="text" id="wf-notes" placeholder="Optional"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addWorkoutLog()">Save</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Type</th><th>Duration</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${logRows||'<tr><td colspan="5" class="text-muted">No workouts logged.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function showWorkoutForm() {
+  const el = document.getElementById('workout-form');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addWorkoutLog() {
+  const date = document.getElementById('wf-date').value.trim();
+  const type = document.getElementById('wf-type').value.trim();
+  const duration = document.getElementById('wf-duration').value.trim();
+  const notes = document.getElementById('wf-notes').value.trim();
+  if (!date || !type) return;
+  if (!Array.isArray(state.workoutLog)) state.workoutLog = [];
+  state.workoutLog.push({date,type,duration,notes});
+  save('workoutLog');
+  setHealthTab('workouts');
+}
+
+function removeWorkoutLog(i) {
+  state.workoutLog.splice(i,1);
+  save('workoutLog');
+  setHealthTab('workouts');
+}
+
+function renderHealthDaily() {
+  const today = todayStr();
+  const dh = state.dailyHealth || {};
+  const rec = dh[today] || {};
+  const days = [];
+  for (let i=6;i>=0;i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    days.push(ds);
+  }
+  const hist = days.map(ds=>{
+    const r = dh[ds]||{};
+    return `<tr><td>${ds}</td><td>${r.water||'—'}</td><td>${r.sleep||'—'}</td><td>${r.steps||'—'}</td><td>${r.energy||'—'}</td></tr>`;
+  }).join('');
+  return `<div class="card mb-3">
+    <div class="card-title">Today's Tracking — ${today}</div>
+    <div class="grid-4">
+      <div class="form-group"><label>💧 Water (glasses)</label>
+        <input class="input" type="text" value="${esc(rec.water||'')}" placeholder="8"
+          onchange="updateDailyHealth('${today}','water',this.value)">
+      </div>
+      <div class="form-group"><label>😴 Sleep (hours)</label>
+        <input class="input" type="text" value="${esc(rec.sleep||'')}" placeholder="8"
+          onchange="updateDailyHealth('${today}','sleep',this.value)">
+      </div>
+      <div class="form-group"><label>👟 Steps</label>
+        <input class="input" type="text" value="${esc(rec.steps||'')}" placeholder="10000"
+          onchange="updateDailyHealth('${today}','steps',this.value)">
+      </div>
+      <div class="form-group"><label>⚡ Energy (1-10)</label>
+        <input class="input" type="text" value="${esc(rec.energy||'')}" placeholder="7"
+          onchange="updateDailyHealth('${today}','energy',this.value)">
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Last 7 Days</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Water</th><th>Sleep</th><th>Steps</th><th>Energy</th></tr></thead>
+      <tbody>${hist}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function updateDailyHealth(date, field, val) {
+  if (!state.dailyHealth) state.dailyHealth = {};
+  if (!state.dailyHealth[date]) state.dailyHealth[date] = {};
+  state.dailyHealth[date][field] = val;
+  save('dailyHealth');
+}
+
+function renderHealthAppts() {
+  const appts = state.appointments || [];
+  const rows = appts.map((a,i)=>`<tr>
+    <td>${esc(a.date)}</td><td>${esc(a.time)}</td><td>${esc(a.provider)}</td><td>${esc(a.notes||'')}</td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeAppt(${i})">✕</button></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Appointments</div>
+      <button class="btn btn-primary btn-sm" onclick="showApptForm()">+ Add</button>
+    </div>
+    <div id="appt-form" style="display:none" class="mb-3">
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input class="input" type="text" id="ap-date" placeholder="YYYY-MM-DD"></div>
+        <div class="form-group"><label>Time</label><input class="input" type="text" id="ap-time" placeholder="2:00 PM"></div>
+        <div class="form-group"><label>Provider</label><input class="input" type="text" id="ap-provider" placeholder="Dr. Smith"></div>
+        <div class="form-group"><label>Notes</label><input class="input" type="text" id="ap-notes" placeholder="Optional"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addAppt()">Save</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Time</th><th>Provider</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No appointments.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function showApptForm() {
+  const el = document.getElementById('appt-form');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addAppt() {
+  const date = document.getElementById('ap-date').value.trim();
+  const time = document.getElementById('ap-time').value.trim();
+  const provider = document.getElementById('ap-provider').value.trim();
+  const notes = document.getElementById('ap-notes').value.trim();
+  if (!date || !provider) return;
+  if (!Array.isArray(state.appointments)) state.appointments = [];
+  state.appointments.push({date,time,provider,notes});
+  save('appointments');
+  setHealthTab('appointments');
+}
+
+function removeAppt(i) {
+  state.appointments.splice(i,1);
+  save('appointments');
+  setHealthTab('appointments');
+}
+
+function initHealth() {
+  if (!currentTabs.health) currentTabs.health = 'weight';
+}
+
+/* ===========================
+   MENTAL HEALTH
+=========================== */
+const MOODS = ['😊','😐','😔','😤','😴'];
+let selectedMood = '';
+
+function renderMental() {
+  const tab = currentTabs.mental || 'mood';
+  const tabs = ['Mood','Stress','Gratitude','Self-Care'];
+  const tbar = tabs.map(t=>`<button class="tab-btn ${tab===t.toLowerCase().replace('-','').replace(' ','')?'active':''}" onclick="setMentalTab('${t.toLowerCase().replace('-','').replace(' ','')}')">${t}</button>`).join('');
+  return `<div class="section-header"><h1>Mental Health</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="mental-body">${renderMentalTab(tab)}</div>`;
+}
+
+function setMentalTab(tab) {
+  currentTabs.mental = tab;
+  const el = document.getElementById('mental-body');
+  if (el) el.innerHTML = renderMentalTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace('-','').replace(' ','')=== tab));
+}
+
+function renderMentalTab(tab) {
+  if (tab==='mood') return renderMood();
+  if (tab==='stress') return renderStress();
+  if (tab==='gratitude') return renderGratitude();
+  if (tab==='selfcare') return renderSelfCare();
+  return '';
+}
+
+function renderMood() {
+  const log = (state.moodLog||[]).slice().reverse().slice(0,20);
+  const moodBtns = MOODS.map(m=>`<button class="mood-btn ${selectedMood===m?'selected':''}" onclick="selectMood('${m}')">${m}</button>`).join('');
+  const logRows = log.map(e=>`<div class="flex items-center gap-3 mb-2 p-2" style="border-radius:8px;border:1.5px solid var(--border)">
+    <span style="font-size:24px">${e.mood}</span>
+    <div style="flex:1"><div style="font-size:13.5px">${esc(e.note||'')}</div>
+    <div class="text-sm text-muted">${esc(e.date)}</div></div>
+  </div>`).join('');
+  return `<div class="grid-2">
+    <div class="card">
+      <div class="card-title">How are you feeling?</div>
+      <div class="mood-picker">${moodBtns}</div>
+      <textarea class="textarea w-full mb-3" id="mood-note" placeholder="Add a note (optional)…" rows="3"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="saveMood()">Save Mood</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Mood History</div>
+      ${logRows||'<p class="text-muted text-sm">No mood entries yet.</p>'}
+    </div>
+  </div>`;
+}
+
+function selectMood(m) {
+  selectedMood = m;
+  setMentalTab('mood');
+}
+
+function saveMood() {
+  if (!selectedMood) { alert('Please select a mood.'); return; }
+  const note = document.getElementById('mood-note').value.trim();
+  if (!Array.isArray(state.moodLog)) state.moodLog = [];
+  state.moodLog.push({date: new Date().toLocaleString(), mood: selectedMood, note});
+  save('moodLog');
+  selectedMood = '';
+  setMentalTab('mood');
+}
+
+function renderStress() {
+  const log = (state.stressLog||[]).slice().reverse().slice(0,20);
+  const logRows = log.map(e=>`<div class="flex items-center gap-3 mb-2 p-2" style="border-radius:8px;border:1.5px solid var(--border)">
+    <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${e.level}</div>
+    <div style="flex:1"><div style="font-size:13.5px">${esc(e.note||'')}</div>
+    <div class="text-sm text-muted">${esc(e.date)}</div></div>
+  </div>`).join('');
+  return `<div class="grid-2">
+    <div class="card">
+      <div class="card-title">Stress Level</div>
+      <div class="form-group"><label>Level (1 = calm, 10 = very stressed)</label>
+        <input class="input" type="text" id="stress-level" placeholder="1–10" style="max-width:100px">
+      </div>
+      <textarea class="textarea w-full mb-3" id="stress-note" placeholder="What's causing stress? Any coping strategies?" rows="3"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="saveStress()">Save</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Stress History</div>
+      ${logRows||'<p class="text-muted text-sm">No stress entries yet.</p>'}
+    </div>
+  </div>`;
+}
+
+function saveStress() {
+  const level = document.getElementById('stress-level').value.trim();
+  const note = document.getElementById('stress-note').value.trim();
+  if (!level) return;
+  if (!Array.isArray(state.stressLog)) state.stressLog = [];
+  state.stressLog.push({date: new Date().toLocaleString(), level, note});
+  save('stressLog');
+  setMentalTab('stress');
+}
+
+function renderGratitude() {
+  const log = (state.gratitudeLog||[]).slice().reverse();
+  const cards = log.map((e,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center">
+      <div>
+        <div style="font-size:13.5px">${esc(e.text)}</div>
+        <div class="text-sm text-muted mt-1">${esc(e.date)}</div>
+      </div>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeGratitude(${log.length-1-i})">✕</button>
+    </div>
+  </div>`).join('');
+  return `<div class="grid-2">
+    <div class="card">
+      <div class="card-title">Add Gratitude</div>
+      <textarea class="textarea w-full mb-3" id="grat-text" placeholder="I'm grateful for…" rows="4"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="saveGratitude()">Save</button>
+    </div>
+    <div class="card"><div class="card-title">Gratitude Log</div>${cards||'<p class="text-muted text-sm">Start your gratitude practice!</p>'}</div>
+  </div>`;
+}
+
+function saveGratitude() {
+  const text = document.getElementById('grat-text').value.trim();
+  if (!text) return;
+  if (!Array.isArray(state.gratitudeLog)) state.gratitudeLog = [];
+  state.gratitudeLog.push({date: todayStr(), text});
+  save('gratitudeLog');
+  setMentalTab('gratitude');
+}
+
+function removeGratitude(i) {
+  state.gratitudeLog.splice(i,1);
+  save('gratitudeLog');
+  setMentalTab('gratitude');
+}
+
+function renderSelfCare() {
+  const defaults = ['Take a relaxing bath','Go for a walk','Meditate for 10 minutes','Read a book','Call someone you love',
+    'Eat a nourishing meal','Get enough sleep','Spend time in nature','Creative activity','Limit screen time'];
+  if (!Array.isArray(state.selfCare)) {
+    state.selfCare = defaults.map(name=>({id:uid(),name,done:false}));
+  }
+  const today = todayStr();
+  const items = state.selfCare.map((item,i)=>`<div class="habit-item ${item.done?'completed':''}">
+    <div class="habit-check ${item.done?'checked':''}" onclick="toggleSelfCare(${i})">
+      ${item.done?'✓':''}
+    </div>
+    <span class="habit-name ${item.done?'done':''}">${esc(item.name)}</span>
+    ${!item.preset ? `<button class="btn btn-danger btn-sm btn-icon" onclick="removeSelfCare(${i})">✕</button>` : ''}
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Self-Care Checklist</div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" onclick="resetSelfCare()">Reset All</button>
+        <button class="btn btn-primary btn-sm" onclick="addSelfCareItem()">+ Add</button>
+      </div>
+    </div>
+    ${items}
+    <div class="divider"></div>
+    <button class="btn btn-secondary btn-sm" onclick="navigate('notes');currentTabs.notes='journal'">
+      📓 Open Journal
+    </button>
+  </div>`;
+}
+
+function toggleSelfCare(i) {
+  state.selfCare[i].done = !state.selfCare[i].done;
+  save('selfCare');
+  setMentalTab('selfcare');
+}
+
+function resetSelfCare() {
+  state.selfCare.forEach(item => item.done = false);
+  save('selfCare');
+  setMentalTab('selfcare');
+}
+
+function addSelfCareItem() {
+  const name = prompt('New self-care activity:');
+  if (!name) return;
+  if (!Array.isArray(state.selfCare)) state.selfCare = [];
+  state.selfCare.push({id:uid(),name,done:false,preset:false});
+  save('selfCare');
+  setMentalTab('selfcare');
+}
+
+function removeSelfCare(i) {
+  state.selfCare.splice(i,1);
+  save('selfCare');
+  setMentalTab('selfcare');
+}
+
+function initMental() {
+  if (!currentTabs.mental) currentTabs.mental = 'mood';
+}
+
+/* ===========================
+   MEAL PLANNING
+=========================== */
+function renderMeals() {
+  const tab = currentTabs.meals || 'weekly';
+  const tbar = ['Weekly','Grocery','Prep Ideas'].map(t=>{
+    const k = t.toLowerCase().replace(' ','');
+    return `<button class="tab-btn ${tab===k?'active':''}" onclick="setMealsTab('${k}')">${t}</button>`;
+  }).join('');
+  return `<div class="section-header"><h1>Meal Planning</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="meals-body">${renderMealsTab(tab)}</div>`;
+}
+
+function setMealsTab(tab) {
+  currentTabs.meals = tab;
+  const el = document.getElementById('meals-body');
+  if (el) el.innerHTML = renderMealsTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(' ','')=== tab));
+}
+
+function renderMealsTab(tab) {
+  if (tab==='weekly') return renderMealsWeekly();
+  if (tab==='grocery') return renderGrocery();
+  if (tab==='prepideas') return renderMealPrep();
+  return '';
+}
+
+function renderMealsWeekly() {
+  const wm = state.weeklyMeals || {};
+  const meals = ['Breakfast','Lunch','Dinner'];
+  const header = `<div></div>${DAY_LABELS.map(d=>`<div class="meal-col-header">${d}</div>`).join('')}`;
+  const rows = meals.map(meal=>{
+    const key = meal.toLowerCase();
+    const cells = DAYS.map(d=>`<div class="meal-cell">
+      <textarea placeholder="${meal}…"
+        onchange="updateMeal('${d}','${key}',this.value)">${esc((wm[d]||{})[key]||'')}</textarea>
+    </div>`).join('');
+    return `<div class="meal-row-label">${meal}</div>${cells}`;
+  }).join('');
+  return `<div class="card"><div class="card-title">Weekly Meal Planner</div>
+    <div style="overflow-x:auto"><div class="meal-grid">${header}${rows}</div></div>
+  </div>`;
+}
+
+function updateMeal(day, meal, val) {
+  if (!state.weeklyMeals) state.weeklyMeals = {};
+  if (!state.weeklyMeals[day]) state.weeklyMeals[day] = {};
+  state.weeklyMeals[day][meal] = val;
+  save('weeklyMeals');
+}
+
+function renderGrocery() {
+  const cats = ['Produce','Dairy','Meat','Pantry','Other'];
+  const items = state.groceryList || [];
+  const byCat = {};
+  cats.forEach(c => { byCat[c] = items.filter(i=>i.category===c); });
+  const listHtml = cats.map(cat=>{
+    if (!byCat[cat].length) return '';
+    const rows = byCat[cat].map((item,_i)=>{
+      const realIdx = items.indexOf(item);
+      return `<div class="pack-item ${item.bought?'packed':''}">
+        <input type="checkbox" ${item.bought?'checked':''} onchange="toggleGrocery(${realIdx})">
+        <label onclick="toggleGrocery(${realIdx})" style="cursor:pointer">${esc(item.name)}</label>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeGrocery(${realIdx})">✕</button>
+      </div>`;
+    }).join('');
+    return `<div class="mb-3"><strong style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">${cat}</strong><div class="mt-2">${rows}</div></div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Grocery List</div>
+      <button class="btn btn-ghost btn-sm" onclick="clearBoughtGroceries()">Clear Bought</button>
+    </div>
+    <div class="form-row mb-3">
+      <input class="input flex-1" type="text" id="groc-name" placeholder="Item name">
+      <select class="select" id="groc-cat">${cats.map(c=>`<option>${c}</option>`).join('')}</select>
+      <button class="btn btn-primary btn-sm" onclick="addGrocery()">Add</button>
+    </div>
+    ${listHtml || '<p class="text-muted text-sm">Your grocery list is empty.</p>'}
+  </div>`;
+}
+
+function addGrocery() {
+  const name = document.getElementById('groc-name').value.trim();
+  const category = document.getElementById('groc-cat').value;
+  if (!name) return;
+  if (!Array.isArray(state.groceryList)) state.groceryList = [];
+  state.groceryList.push({id:uid(),name,category,bought:false});
+  save('groceryList');
+  document.getElementById('groc-name').value = '';
+  setMealsTab('grocery');
+}
+
+function toggleGrocery(i) {
+  state.groceryList[i].bought = !state.groceryList[i].bought;
+  save('groceryList');
+  setMealsTab('grocery');
+}
+
+function removeGrocery(i) {
+  state.groceryList.splice(i,1);
+  save('groceryList');
+  setMealsTab('grocery');
+}
+
+function clearBoughtGroceries() {
+  state.groceryList = (state.groceryList||[]).filter(i=>!i.bought);
+  save('groceryList');
+  setMealsTab('grocery');
+}
+
+function renderMealPrep() {
+  const ideas = state.mealPrepIdeas || [];
+  const cards = ideas.map((idea,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center">
+      <div style="font-size:13.5px">${esc(idea.text)}</div>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeMealPrep(${i})">✕</button>
+    </div>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="card-title">Meal Prep Ideas</div>
+    <div class="form-row mb-3">
+      <input class="input flex-1" type="text" id="prep-text" placeholder="Prep idea or recipe…">
+      <button class="btn btn-primary btn-sm" onclick="addMealPrep()">Add</button>
+    </div>
+    ${cards || '<p class="text-muted text-sm">No ideas yet. Add some meal prep inspiration!</p>'}
+  </div>`;
+}
+
+function addMealPrep() {
+  const text = document.getElementById('prep-text').value.trim();
+  if (!text) return;
+  if (!Array.isArray(state.mealPrepIdeas)) state.mealPrepIdeas = [];
+  state.mealPrepIdeas.push({id:uid(),text});
+  save('mealPrepIdeas');
+  document.getElementById('prep-text').value = '';
+  setMealsTab('prepideas');
+}
+
+function removeMealPrep(i) {
+  state.mealPrepIdeas.splice(i,1);
+  save('mealPrepIdeas');
+  setMealsTab('prepideas');
+}
+
+function initMeals() {
+  if (!currentTabs.meals) currentTabs.meals = 'weekly';
+}
+
+/* ===========================
+   TRAVEL
+=========================== */
+let currentTripId = null;
+let currentTripTab = 'overview';
+
+function renderTravel() {
+  if (currentTripId) return renderTripDetail();
+  return renderTripList();
+}
+
+function renderTripList() {
+  const trips = state.trips || [];
+  const cards = trips.map(t=>`<div class="trip-card" onclick="openTrip('${t.id}')">
+    <div class="flex justify-between items-center">
+      <h3>${esc(t.name||'Unnamed Trip')}</h3>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="event.stopPropagation();removeTrip('${t.id}')">✕</button>
+    </div>
+    <div class="text-sm text-muted">${esc(t.overview&&t.overview.destination||'Destination TBD')} · ${esc(t.overview&&t.overview.dates||'Dates TBD')}</div>
+    <div class="flex gap-2 mt-2">
+      <span class="badge badge-blue">✈️ Trip</span>
+      ${t.packing&&t.packing.length ? `<span class="badge badge-gray">${t.packing.filter(p=>p.packed).length}/${t.packing.length} packed</span>` : ''}
+    </div>
+  </div>`).join('');
+  return `<div class="section-header flex justify-between items-center">
+    <h1>Travel</h1>
+    <button class="btn btn-primary" onclick="addTrip()">+ New Trip</button>
+  </div>
+  ${cards || '<div class="card"><p class="text-muted">No trips yet. Add one to get started!</p></div>'}`;
+}
+
+function addTrip() {
+  if (!Array.isArray(state.trips)) state.trips = [];
+  const trip = {id:uid(),name:'New Trip',overview:{destination:'',dates:'',accommodation:'',notes:''},
+    logistics:{flights:'',transport:'',confirmation:''},itinerary:[],
+    budget:{total:'',categories:[]},packing:[]};
+  state.trips.push(trip);
+  save('trips');
+  currentTripId = trip.id;
+  currentTripTab = 'overview';
+  renderSection('travel');
+}
+
+function removeTrip(id) {
+  if (!confirm('Delete this trip?')) return;
+  state.trips = state.trips.filter(t=>t.id!==id);
+  save('trips');
+  renderSection('travel');
+}
+
+function openTrip(id) {
+  currentTripId = id;
+  currentTripTab = 'overview';
+  renderSection('travel');
+}
+
+function renderTripDetail() {
+  const trip = (state.trips||[]).find(t=>t.id===currentTripId);
+  if (!trip) { currentTripId=null; return renderTripList(); }
+  const tabs = ['Overview','Logistics','Itinerary','Budget','Packing'];
+  const tbar = tabs.map(t=>`<button class="tab-btn ${currentTripTab===t.toLowerCase()?'active':''}" onclick="setTripTab('${t.toLowerCase()}')">${t}</button>`).join('');
+  let body = '';
+  if (currentTripTab==='overview') body = renderTripOverview(trip);
+  else if (currentTripTab==='logistics') body = renderTripLogistics(trip);
+  else if (currentTripTab==='itinerary') body = renderTripItinerary(trip);
+  else if (currentTripTab==='budget') body = renderTripBudget(trip);
+  else if (currentTripTab==='packing') body = renderTripPacking(trip);
+  return `<div class="section-header">
+    <div class="flex items-center gap-3">
+      <button class="btn btn-ghost btn-sm" onclick="currentTripId=null;renderSection('travel')">← All Trips</button>
+      <input class="input" type="text" value="${esc(trip.name)}" style="font-family:var(--font-heading);font-size:20px;border:none;box-shadow:none;padding:0;font-weight:700;flex:1"
+        onchange="trip_rename('${trip.id}',this.value)">
+    </div>
+  </div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="trip-body">${body}</div>`;
+}
+
+function trip_rename(id, name) {
+  const t = state.trips.find(x=>x.id===id);
+  if (t) { t.name = name; save('trips'); }
+}
+
+function setTripTab(tab) {
+  currentTripTab = tab;
+  const el = document.getElementById('trip-body');
+  const trip = (state.trips||[]).find(t=>t.id===currentTripId);
+  if (!el || !trip) return;
+  let html = '';
+  if (tab==='overview') html = renderTripOverview(trip);
+  else if (tab==='logistics') html = renderTripLogistics(trip);
+  else if (tab==='itinerary') html = renderTripItinerary(trip);
+  else if (tab==='budget') html = renderTripBudget(trip);
+  else if (tab==='packing') html = renderTripPacking(trip);
+  el.innerHTML = html;
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase()===tab));
+}
+
+function renderTripOverview(trip) {
+  const o = trip.overview || {};
+  return `<div class="card">
+    <div class="card-title">Trip Overview</div>
+    <div class="form-row">
+      <div class="form-group"><label>Destination</label>
+        <input class="input" type="text" value="${esc(o.destination||'')}" placeholder="Paris, France"
+          onchange="updateTripField('${trip.id}','overview','destination',this.value)">
+      </div>
+      <div class="form-group"><label>Dates</label>
+        <input class="input" type="text" value="${esc(o.dates||'')}" placeholder="July 10-17, 2026"
+          onchange="updateTripField('${trip.id}','overview','dates',this.value)">
+      </div>
+      <div class="form-group"><label>Accommodation</label>
+        <input class="input" type="text" value="${esc(o.accommodation||'')}" placeholder="Hotel name / Airbnb"
+          onchange="updateTripField('${trip.id}','overview','accommodation',this.value)">
+      </div>
+    </div>
+    <div class="form-group"><label>Notes</label>
+      <textarea class="textarea w-full" placeholder="Trip notes, must-sees, tips…"
+        onchange="updateTripField('${trip.id}','overview','notes',this.value)">${esc(o.notes||'')}</textarea>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addTripToCalendar('${trip.id}')">📅 Add to Calendar</button>
+  </div>`;
+}
+
+function updateTripField(id, section, field, val) {
+  const t = state.trips.find(x=>x.id===id);
+  if (!t) return;
+  if (!t[section]) t[section] = {};
+  t[section][field] = val;
+  save('trips');
+}
+
+function addTripToCalendar(id) {
+  const t = state.trips.find(x=>x.id===id);
+  if (!t) return;
+  if (!Array.isArray(state.calendarEvents)) state.calendarEvents = [];
+  const dates = (t.overview&&t.overview.dates||'').trim();
+  const dest = t.name || 'Trip';
+  state.calendarEvents.push({id:uid(), date:todayStr(), title:`✈️ ${dest}${dates?' ('+dates+')':''}`, color:'#60a5fa'});
+  save('calendarEvents');
+  alert('Trip added to calendar!');
+}
+
+function renderTripLogistics(trip) {
+  const l = trip.logistics || {};
+  return `<div class="card">
+    <div class="card-title">Logistics</div>
+    <div class="form-group"><label>Flights</label>
+      <textarea class="textarea w-full" placeholder="Flight numbers, departure times, airports…"
+        onchange="updateTripField('${trip.id}','logistics','flights',this.value)">${esc(l.flights||'')}</textarea>
+    </div>
+    <div class="form-group"><label>Ground Transport</label>
+      <textarea class="textarea w-full" placeholder="Car rental, trains, buses, rideshare…"
+        onchange="updateTripField('${trip.id}','logistics','transport',this.value)">${esc(l.transport||'')}</textarea>
+    </div>
+    <div class="form-group"><label>Confirmation Numbers</label>
+      <textarea class="textarea w-full" placeholder="Booking references, confirmation codes…"
+        onchange="updateTripField('${trip.id}','logistics','confirmation',this.value)">${esc(l.confirmation||'')}</textarea>
+    </div>
+  </div>`;
+}
+
+function renderTripItinerary(trip) {
+  const days = trip.itinerary || [];
+  const dayCards = days.map((d,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center mb-2">
+      <div class="flex gap-2 items-center">
+        <strong>Day ${i+1}</strong>
+        <input class="input" type="text" value="${esc(d.date||'')}" placeholder="YYYY-MM-DD" style="width:130px"
+          onchange="updateItineraryDay('${trip.id}',${i},'date',this.value)">
+      </div>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeItineraryDay('${trip.id}',${i})">✕</button>
+    </div>
+    <textarea class="textarea w-full" style="min-height:80px" placeholder="Activities, places to visit…"
+      onchange="updateItineraryDay('${trip.id}',${i},'activities',this.value)">${esc(d.activities||'')}</textarea>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Itinerary</div>
+      <button class="btn btn-primary btn-sm" onclick="addItineraryDay('${trip.id}')">+ Add Day</button>
+    </div>
+    ${dayCards || '<p class="text-muted text-sm">No days planned yet.</p>'}
+  </div>`;
+}
+
+function addItineraryDay(tripId) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  if (!Array.isArray(t.itinerary)) t.itinerary = [];
+  t.itinerary.push({date:'',activities:''});
+  save('trips');
+  setTripTab('itinerary');
+}
+
+function removeItineraryDay(tripId, i) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  t.itinerary.splice(i,1);
+  save('trips');
+  setTripTab('itinerary');
+}
+
+function updateItineraryDay(tripId, i, field, val) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t || !t.itinerary[i]) return;
+  t.itinerary[i][field] = val;
+  save('trips');
+}
+
+function renderTripBudget(trip) {
+  const b = trip.budget || {};
+  const cats = b.categories || [];
+  const total = parseFloat(b.total)||0;
+  const totalSpent = cats.reduce((s,c)=>s+(parseFloat(c.spent)||0),0);
+  const catRows = cats.map((c,i)=>{
+    const budgeted = parseFloat(c.amount)||0;
+    const spent = parseFloat(c.spent)||0;
+    const over = spent > budgeted;
+    const pct = budgeted ? Math.min(100,Math.round(spent/budgeted*100)) : 0;
+    return `<div class="card mb-2" style="padding:14px">
+      <div class="flex gap-2 items-center mb-2">
+        <input class="input flex-1" type="text" value="${esc(c.name||'')}" placeholder="Category"
+          onchange="updateTripBudgetCat('${trip.id}',${i},'name',this.value)">
+        <input class="input" type="text" value="${esc(c.amount||'')}" placeholder="Budget $" style="width:110px"
+          onchange="updateTripBudgetCat('${trip.id}',${i},'amount',this.value)">
+        <input class="input" type="text" value="${esc(c.spent||'')}" placeholder="Spent $" style="width:110px"
+          onchange="updateTripBudgetCat('${trip.id}',${i},'spent',this.value)">
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeTripBudgetCat('${trip.id}',${i})">✕</button>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${over?'progress-red':'progress-green'}" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-sm text-muted mt-1">
+        <span>$${spent.toFixed(2)} spent</span>
+        <span class="${over?'text-accent':'badge-green'}">${over?'Over by $'+(spent-budgeted).toFixed(2):'$'+(budgeted-spent).toFixed(2)+' remaining'}</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-title">Trip Budget</div>
+    <div class="flex gap-3 items-center mb-3">
+      <div class="form-group flex-1" style="margin-bottom:0"><label>Total Budget ($)</label>
+        <input class="input" type="text" value="${esc(b.total||'')}" placeholder="2000"
+          onchange="updateTripBudgetTotal('${trip.id}',this.value)">
+      </div>
+      <div class="text-sm text-muted mt-3">Spent: $${totalSpent.toFixed(2)} / $${(total||0).toFixed(2)}</div>
+    </div>
+    ${catRows}
+    <button class="btn btn-secondary btn-sm mt-2" onclick="addTripBudgetCat('${trip.id}')">+ Add Category</button>
+  </div>`;
+}
+
+function updateTripBudgetTotal(tripId, val) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  if (!t.budget) t.budget = {};
+  t.budget.total = val;
+  save('trips');
+}
+
+function addTripBudgetCat(tripId) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  if (!t.budget) t.budget = {total:'',categories:[]};
+  if (!Array.isArray(t.budget.categories)) t.budget.categories = [];
+  t.budget.categories.push({name:'',amount:'',spent:''});
+  save('trips');
+  setTripTab('budget');
+}
+
+function updateTripBudgetCat(tripId, i, field, val) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t||!t.budget||!t.budget.categories[i]) return;
+  t.budget.categories[i][field] = val;
+  save('trips');
+}
+
+function removeTripBudgetCat(tripId, i) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t||!t.budget) return;
+  t.budget.categories.splice(i,1);
+  save('trips');
+  setTripTab('budget');
+}
+
+function renderTripPacking(trip) {
+  const items = trip.packing || [];
+  const packed = items.filter(i=>i.packed).length;
+  const pct = items.length ? Math.round(packed/items.length*100) : 0;
+  const list = items.map((item,i)=>`<div class="pack-item ${item.packed?'packed':''}">
+    <input type="checkbox" ${item.packed?'checked':''} onchange="togglePackItem('${trip.id}',${i})">
+    <label onclick="togglePackItem('${trip.id}',${i})">${esc(item.name)}</label>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removePackItem('${trip.id}',${i})">✕</button>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Packing List</div>
+      <span class="badge badge-blue">${packed}/${items.length} packed</span>
+    </div>
+    ${items.length ? `<div class="progress-wrap mb-3"><div class="progress-fill progress-green" style="width:${pct}%"></div></div>` : ''}
+    <div class="form-row mb-3">
+      <input class="input flex-1" type="text" id="pack-item-name" placeholder="Add item…">
+      <button class="btn btn-primary btn-sm" onclick="addPackItem('${trip.id}')">Add</button>
+    </div>
+    ${list || '<p class="text-muted text-sm">Packing list is empty.</p>'}
+  </div>`;
+}
+
+function addPackItem(tripId) {
+  const name = document.getElementById('pack-item-name').value.trim();
+  if (!name) return;
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  if (!Array.isArray(t.packing)) t.packing = [];
+  t.packing.push({name, packed:false});
+  save('trips');
+  document.getElementById('pack-item-name').value = '';
+  setTripTab('packing');
+}
+
+function togglePackItem(tripId, i) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t||!t.packing[i]) return;
+  t.packing[i].packed = !t.packing[i].packed;
+  save('trips');
+  setTripTab('packing');
+}
+
+function removePackItem(tripId, i) {
+  const t = state.trips.find(x=>x.id===tripId);
+  if (!t) return;
+  t.packing.splice(i,1);
+  save('trips');
+  setTripTab('packing');
+}
+
+function initTravel() {}
+// PART 4b: Finance, Career, Social, Notes, Settings + init
+
+/* ===========================
+   FINANCE
+=========================== */
+function renderFinance() {
+  const tab = currentTabs.finance || 'income';
+  const tabs = ['Income','Tax','Budget','Debt','Expenses','Savings','Accounts'];
+  const tbar = tabs.map(t=>`<button class="tab-btn ${tab===t.toLowerCase()?'active':''}" onclick="setFinanceTab('${t.toLowerCase()}')">${t}</button>`).join('');
+  return `<div class="section-header"><h1>Finance</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="finance-body">${renderFinanceTab(tab)}</div>`;
+}
+
+function setFinanceTab(tab) {
+  currentTabs.finance = tab;
+  const el = document.getElementById('finance-body');
+  if (el) el.innerHTML = renderFinanceTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase()===tab));
+}
+
+function renderFinanceTab(tab) {
+  if (tab==='income') return renderIncomeTab();
+  if (tab==='tax') return renderTaxTab();
+  if (tab==='budget') return renderBudgetTab();
+  if (tab==='debt') return renderDebtTab();
+  if (tab==='expenses') return renderExpensesTab();
+  if (tab==='savings') return renderSavingsTab();
+  if (tab==='accounts') return renderAccountsTab();
+  return '';
+}
+
+function renderIncomeTab() {
+  const inc = state.income || [];
+  const total = inc.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+  const rows = inc.map((e,i)=>`<tr>
+    <td>${esc(e.source)}</td>
+    <td>$${parseFloat(e.amount||0).toFixed(2)}</td>
+    <td>${esc(e.date)}</td>
+    <td><span class="badge badge-blue">${esc(e.type)}</span></td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeIncome(${i})">✕</button></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Income Tracker</div>
+      <div class="stat-value" style="font-size:20px">$${total.toFixed(2)}</div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="form-group"><label>Source</label><input class="input" type="text" id="inc-src" placeholder="Employer name"></div>
+      <div class="form-group"><label>Amount ($)</label><input class="input" type="text" id="inc-amt" placeholder="5000"></div>
+      <div class="form-group"><label>Date</label><input class="input" type="text" id="inc-date" placeholder="YYYY-MM-DD"></div>
+      <div class="form-group"><label>Type</label>
+        <select class="select" id="inc-type"><option>Salary</option><option>Freelance</option><option>Passive</option><option>Other</option></select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm mb-3" onclick="addIncome()">+ Add Income</button>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Source</th><th>Amount</th><th>Date</th><th>Type</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No income entries yet.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function addIncome() {
+  const source = document.getElementById('inc-src').value.trim();
+  const amount = document.getElementById('inc-amt').value.trim();
+  const date = document.getElementById('inc-date').value.trim();
+  const type = document.getElementById('inc-type').value;
+  if (!source || !amount) return;
+  if (!Array.isArray(state.income)) state.income = [];
+  state.income.push({source,amount,date,type});
+  save('income');
+  setFinanceTab('income');
+}
+
+function removeIncome(i) {
+  state.income.splice(i,1);
+  save('income');
+  setFinanceTab('income');
+}
+
+function renderTaxTab() {
+  const ti = state.taxInfo || {};
+  const mode = ti.mode || 'w2';
+  let result = '';
+  if (mode==='w2' && ti.salary) result = calcW2Tax(ti);
+  if (mode==='1099' && ti.freelance) result = calc1099Tax(ti);
+
+  const stateOpts = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+    .map(s=>`<option value="${s}" ${ti.state===s?'selected':''}>${s}</option>`).join('');
+
+  return `<div class="card">
+    <div class="card-title">Tax Calculator</div>
+    <div class="flex gap-3 mb-4">
+      <button class="btn ${mode==='w2'?'btn-primary':'btn-ghost'}" onclick="setTaxMode('w2')">W-2 Employee</button>
+      <button class="btn ${mode==='1099'?'btn-primary':'btn-ghost'}" onclick="setTaxMode('1099')">1099 Self-Employed</button>
+    </div>
+    ${mode==='w2' ? `
+    <div class="form-row">
+      <div class="form-group"><label>Annual Salary ($)</label>
+        <input class="input" type="text" value="${esc(ti.salary||'')}" placeholder="75000"
+          onchange="state.taxInfo.salary=this.value;save('taxInfo');calcAndShowTax()">
+      </div>
+      <div class="form-group"><label>Filing Status</label>
+        <select class="select" onchange="state.taxInfo.filing=this.value;save('taxInfo');calcAndShowTax()">
+          <option value="single" ${ti.filing==='single'?'selected':''}>Single</option>
+          <option value="mfj" ${ti.filing==='mfj'?'selected':''}>Married Filing Jointly</option>
+          <option value="hoh" ${ti.filing==='hoh'?'selected':''}>Head of Household</option>
+        </select>
+      </div>
+      <div class="form-group"><label>State</label>
+        <select class="select" onchange="state.taxInfo.state=this.value;save('taxInfo');calcAndShowTax()">
+          ${stateOpts}
+        </select>
+      </div>
+    </div>` : `
+    <div class="form-row">
+      <div class="form-group"><label>Gross 1099 Income ($)</label>
+        <input class="input" type="text" value="${esc(ti.freelance||'')}" placeholder="80000"
+          onchange="state.taxInfo.freelance=this.value;save('taxInfo');calcAndShowTax()">
+      </div>
+      <div class="form-group"><label>Business Expenses ($)</label>
+        <input class="input" type="text" value="${esc(ti.expenses||'')}" placeholder="10000"
+          onchange="state.taxInfo.expenses=this.value;save('taxInfo');calcAndShowTax()">
+      </div>
+      <div class="form-group"><label>Filing Status</label>
+        <select class="select" onchange="state.taxInfo.filing=this.value;save('taxInfo');calcAndShowTax()">
+          <option value="single" ${ti.filing==='single'?'selected':''}>Single</option>
+          <option value="mfj" ${ti.filing==='mfj'?'selected':''}>Married Filing Jointly</option>
+          <option value="hoh" ${ti.filing==='hoh'?'selected':''}>Head of Household</option>
+        </select>
+      </div>
+    </div>`}
+    <div id="tax-result">${result}</div>
+  </div>`;
+}
+
+function setTaxMode(mode) {
+  state.taxInfo.mode = mode;
+  save('taxInfo');
+  setFinanceTab('tax');
+}
+
+function calcAndShowTax() {
+  const el = document.getElementById('tax-result');
+  if (!el) return;
+  const ti = state.taxInfo;
+  if (ti.mode==='w2' && ti.salary) el.innerHTML = calcW2Tax(ti);
+  else if (ti.mode==='1099' && ti.freelance) el.innerHTML = calc1099Tax(ti);
+}
+
+// Federal income tax brackets 2024
+const FED_BRACKETS_SINGLE = [[11600,.10],[47150,.12],[100525,.22],[191950,.24],[243725,.32],[609350,.35],[Infinity,.37]];
+const FED_BRACKETS_MFJ    = [[23200,.10],[94300,.12],[201050,.22],[383900,.24],[487450,.32],[731200,.35],[Infinity,.37]];
+const FED_BRACKETS_HOH    = [[16550,.10],[63100,.12],[100500,.22],[191950,.24],[243700,.32],[609350,.35],[Infinity,.37]];
+const STD_DED = {single:14600, mfj:29200, hoh:21900};
+
+// Approximate state income tax rates
+const STATE_TAX = {
+  AK:0,FL:0,NV:0,NH:0,SD:0,TN:0,TX:0,WA:0,WY:0,
+  AL:.05,AZ:.025,AR:.047,CA:.093,CO:.044,CT:.07,DE:.066,GA:.055,HI:.11,
+  ID:.058,IL:.0495,IN:.032,IA:.06,KS:.057,KY:.045,LA:.045,ME:.0715,
+  MD:.0575,MA:.05,MI:.0425,MN:.0985,MS:.047,MO:.054,MT:.069,NE:.0684,
+  NJ:.1075,NM:.059,NY:.0109,NC:.0499,ND:.029,OH:.04,OK:.05,OR:.099,
+  PA:.0307,RI:.0599,SC:.07,UT:.0485,VT:.0875,VA:.0575,WV:.065,WI:.0765
+};
+
+function calcFedTax(taxableIncome, filing) {
+  const brackets = filing==='mfj' ? FED_BRACKETS_MFJ : filing==='hoh' ? FED_BRACKETS_HOH : FED_BRACKETS_SINGLE;
+  let tax=0, prev=0;
+  for (const [top, rate] of brackets) {
+    if (taxableIncome <= prev) break;
+    tax += (Math.min(taxableIncome,top)-prev)*rate;
+    prev = top;
+  }
+  return tax;
+}
+
+function calcW2Tax(ti) {
+  const salary = parseFloat(ti.salary)||0;
+  const filing = ti.filing||'single';
+  const stateCode = ti.state||'CA';
+  const stdDed = STD_DED[filing]||14600;
+  const taxable = Math.max(0, salary - stdDed);
+  const fedTax = calcFedTax(taxable, filing);
+  const stateTax = salary * (STATE_TAX[stateCode]||0);
+  const ficaSS = Math.min(salary,160200)*0.062;
+  const ficaMed = salary*0.0145;
+  const total = fedTax+stateTax+ficaSS+ficaMed;
+  const effRate = salary ? (total/salary*100).toFixed(1) : 0;
+  return `<div class="divider"></div>
+  <div class="grid-4 mt-3">
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${fedTax.toFixed(0)}</div><div class="stat-label">Federal Tax</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${stateTax.toFixed(0)}</div><div class="stat-label">State Tax (${stateCode})</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${(ficaSS+ficaMed).toFixed(0)}</div><div class="stat-label">FICA (SS+Med)</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">${effRate}%</div><div class="stat-label">Effective Rate</div></div>
+  </div>
+  <div class="card mt-3" style="background:var(--accent-light)">
+    <div class="flex justify-between"><span>Annual take-home</span><strong>$${(salary-total).toFixed(2)}</strong></div>
+    <div class="flex justify-between text-sm text-muted mt-1"><span>Monthly</span><span>$${((salary-total)/12).toFixed(2)}</span></div>
+  </div>`;
+}
+
+function calc1099Tax(ti) {
+  const gross = parseFloat(ti.freelance)||0;
+  const expenses = parseFloat(ti.expenses)||0;
+  const filing = ti.filing||'single';
+  const net = Math.max(0, gross-expenses);
+  const seTaxBase = net * 0.9235;
+  const seTax = seTaxBase * 0.153;
+  const seDeduction = seTax / 2;
+  const stdDed = STD_DED[filing]||14600;
+  const taxable = Math.max(0, net - seDeduction - stdDed);
+  const fedTax = calcFedTax(taxable, filing);
+  const totalTax = fedTax + seTax;
+  const quarterly = totalTax / 4;
+  const effRate = gross ? (totalTax/gross*100).toFixed(1) : 0;
+  return `<div class="divider"></div>
+  <div class="grid-4 mt-3">
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${seTax.toFixed(0)}</div><div class="stat-label">SE Tax (15.3%)</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${fedTax.toFixed(0)}</div><div class="stat-label">Federal Tax</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">$${totalTax.toFixed(0)}</div><div class="stat-label">Total Tax</div></div>
+    <div class="stat-card"><div class="stat-value" style="font-size:20px">${effRate}%</div><div class="stat-label">Effective Rate</div></div>
+  </div>
+  <div class="card mt-3" style="background:var(--accent-light)">
+    <div class="flex justify-between"><strong>Quarterly estimated payment</strong><strong>$${quarterly.toFixed(2)}</strong></div>
+    <div class="flex justify-between text-sm text-muted mt-1"><span>Take-home after tax</span><span>$${(gross-totalTax).toFixed(2)}</span></div>
+  </div>`;
+}
+
+function renderBudgetTab() {
+  const cats = state.budget || [];
+  const rows = cats.map((c,i)=>{
+    const budget = parseFloat(c.budget)||0;
+    const spent = parseFloat(c.spent)||0;
+    const pct = budget ? Math.min(100,Math.round(spent/budget*100)) : 0;
+    const cls = pct>=90?'progress-red':pct>=70?'progress-yellow':'progress-green';
+    const remaining = budget - spent;
+    return `<div class="card mb-2" style="padding:14px">
+      <div class="flex gap-2 items-center mb-2">
+        <span style="width:12px;height:12px;border-radius:50%;background:${c.color};display:inline-block;flex-shrink:0"></span>
+        <input class="input flex-1" type="text" value="${esc(c.name)}" placeholder="Category"
+          onchange="state.budget[${i}].name=this.value;save('budget')">
+        <input class="input" type="text" value="${esc(c.budget||'')}" placeholder="Budget $" style="width:110px"
+          onchange="state.budget[${i}].budget=this.value;save('budget')">
+        <input class="input" type="text" value="${esc(c.spent||'')}" placeholder="Spent $" style="width:110px"
+          onchange="state.budget[${i}].spent=this.value;save('budget')">
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${cls}" style="width:${pct}%;background:${c.color}"></div></div>
+      <div class="flex justify-between text-sm text-muted mt-1">
+        <span>$${spent.toFixed(2)} of $${budget.toFixed(2)}</span>
+        <span>${remaining>=0?'$'+remaining.toFixed(2)+' left':'$'+Math.abs(remaining).toFixed(2)+' over'}</span>
+      </div>
+    </div>`;
+  }).join('');
+  const totalBudget = cats.reduce((s,c)=>s+(parseFloat(c.budget)||0),0);
+  const totalSpent = cats.reduce((s,c)=>s+(parseFloat(c.spent)||0),0);
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Monthly Budget</div>
+      <div class="text-sm text-muted">$${totalSpent.toFixed(2)} / $${totalBudget.toFixed(2)}</div>
+    </div>
+    ${rows}
+    <button class="btn btn-secondary btn-sm mt-2" onclick="addBudgetCat()">+ Add Category</button>
+  </div>`;
+}
+
+function addBudgetCat() {
+  const colors = ['#6c9bd2','#7bc67e','#f0a742','#c47ec4','#e87474','#888','#34d399','#f9a8d4'];
+  const color = colors[state.budget.length % colors.length];
+  state.budget.push({id:uid(),name:'Category',budget:'',spent:'',color});
+  save('budget');
+  setFinanceTab('budget');
+}
+
+function renderDebtTab() {
+  const debts = state.debts || [];
+  const totalDebt = debts.reduce((s,d)=>s+(parseFloat(d.remaining)||0),0);
+  const rows = debts.map((d,i)=>{
+    const total = parseFloat(d.total)||0;
+    const remaining = parseFloat(d.remaining)||0;
+    const pct = total ? Math.min(100,Math.round((1-remaining/total)*100)) : 0;
+    const cls = pct>=75?'progress-green':pct>=25?'progress-yellow':'progress-red';
+    return `<div class="card mb-2" style="padding:14px">
+      <div class="flex justify-between items-center mb-2">
+        <input class="input flex-1 mr-2" type="text" value="${esc(d.name||'')}" placeholder="Debt name"
+          onchange="state.debts[${i}].name=this.value;save('debts')">
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeDebt(${i})">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Total ($)</label><input class="input" type="text" value="${esc(d.total||'')}" placeholder="10000" onchange="state.debts[${i}].total=this.value;save('debts')"></div>
+        <div class="form-group"><label>Remaining ($)</label><input class="input" type="text" value="${esc(d.remaining||'')}" placeholder="7500" onchange="state.debts[${i}].remaining=this.value;save('debts')"></div>
+        <div class="form-group"><label>Interest Rate</label><input class="input" type="text" value="${esc(d.rate||'')}" placeholder="18.9%" onchange="state.debts[${i}].rate=this.value;save('debts')"></div>
+        <div class="form-group"><label>Min Payment ($)</label><input class="input" type="text" value="${esc(d.minPayment||'')}" placeholder="200" onchange="state.debts[${i}].minPayment=this.value;save('debts')"></div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-sm text-muted mt-1">
+        <span>${pct}% paid off</span><span>$${remaining.toFixed(2)} remaining</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Debt Tracker</div>
+      <div class="stat-value" style="font-size:20px;color:#dc2626">$${totalDebt.toFixed(2)}</div>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No debts tracked. Debt-free! 🎉</p>'}
+    <button class="btn btn-secondary btn-sm mt-2" onclick="addDebt()">+ Add Debt</button>
+  </div>`;
+}
+
+function addDebt() {
+  if (!Array.isArray(state.debts)) state.debts = [];
+  state.debts.push({id:uid(),name:'',total:'',remaining:'',rate:'',minPayment:''});
+  save('debts');
+  setFinanceTab('debt');
+}
+
+function removeDebt(i) {
+  state.debts.splice(i,1);
+  save('debts');
+  setFinanceTab('debt');
+}
+
+function renderExpensesTab() {
+  const exps = state.expenses || [];
+  const cats = ['Housing','Food','Transport','Entertainment','Health','Personal','Other'];
+  const filterCat = currentTabs.expenseCat || 'All';
+  const filtered = filterCat==='All' ? exps : exps.filter(e=>e.category===filterCat);
+  const total = filtered.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const rows = filtered.slice().reverse().map((e,i)=>{
+    const realIdx = exps.indexOf(e);
+    return `<tr>
+      <td>${esc(e.date)}</td>
+      <td><span class="badge badge-gray">${esc(e.category)}</span></td>
+      <td>${esc(e.description)}</td>
+      <td>$${parseFloat(e.amount||0).toFixed(2)}</td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeExpense(${realIdx})">✕</button></td>
+    </tr>`;
+  }).join('');
+  const catBtns = ['All',...cats].map(c=>`<button class="btn btn-sm ${filterCat===c?'btn-primary':'btn-ghost'}" onclick="currentTabs.expenseCat='${c}';setFinanceTab('expenses')">${c}</button>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Expenses</div>
+      <div class="stat-value" style="font-size:20px">$${total.toFixed(2)}</div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="form-group"><label>Date</label><input class="input" type="text" id="exp-date" placeholder="YYYY-MM-DD" value="${todayStr()}"></div>
+      <div class="form-group"><label>Category</label><select class="select" id="exp-cat">${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Description</label><input class="input" type="text" id="exp-desc" placeholder="Coffee, gas…"></div>
+      <div class="form-group"><label>Amount ($)</label><input class="input" type="text" id="exp-amt" placeholder="12.50"></div>
+    </div>
+    <button class="btn btn-primary btn-sm mb-3" onclick="addExpense()">+ Add Expense</button>
+    <div class="flex gap-2 flex-wrap mb-3">${catBtns}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No expenses logged.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function addExpense() {
+  const date = document.getElementById('exp-date').value.trim();
+  const category = document.getElementById('exp-cat').value;
+  const description = document.getElementById('exp-desc').value.trim();
+  const amount = document.getElementById('exp-amt').value.trim();
+  if (!date || !description || !amount) return;
+  if (!Array.isArray(state.expenses)) state.expenses = [];
+  state.expenses.push({date,category,description,amount});
+  save('expenses');
+  setFinanceTab('expenses');
+}
+
+function removeExpense(i) {
+  state.expenses.splice(i,1);
+  save('expenses');
+  setFinanceTab('expenses');
+}
+
+function renderSavingsTab() {
+  const goals = state.savingsGoals || [];
+  const rows = goals.map((g,i)=>{
+    const target = parseFloat(g.target)||0;
+    const current = parseFloat(g.current)||0;
+    const pct = target ? Math.min(100,Math.round(current/target*100)) : 0;
+    const cls = pct>=100?'progress-green':pct>=50?'progress-yellow':'progress-blue';
+    return `<div class="card mb-2" style="padding:14px">
+      <div class="flex justify-between items-center mb-2">
+        <input class="input flex-1 mr-2" type="text" value="${esc(g.name||'')}" placeholder="Goal name"
+          onchange="state.savingsGoals[${i}].name=this.value;save('savingsGoals')">
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeSavingsGoal(${i})">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Target ($)</label><input class="input" type="text" value="${esc(g.target||'')}" placeholder="5000" onchange="state.savingsGoals[${i}].target=this.value;save('savingsGoals')"></div>
+        <div class="form-group"><label>Current ($)</label><input class="input" type="text" value="${esc(g.current||'')}" placeholder="1200" onchange="state.savingsGoals[${i}].current=this.value;save('savingsGoals')"></div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-sm text-muted mt-1">
+        <span>${pct}% saved</span>
+        <span>${pct>=100?'🎉 Goal reached!':'$'+(target-current).toFixed(2)+' to go'}</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Savings Goals</div>
+      <button class="btn btn-primary btn-sm" onclick="addSavingsGoal()">+ Add Goal</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No savings goals yet.</p>'}
+  </div>`;
+}
+
+function addSavingsGoal() {
+  if (!Array.isArray(state.savingsGoals)) state.savingsGoals = [];
+  state.savingsGoals.push({id:uid(),name:'',target:'',current:''});
+  save('savingsGoals');
+  setFinanceTab('savings');
+}
+
+function removeSavingsGoal(i) {
+  state.savingsGoals.splice(i,1);
+  save('savingsGoals');
+  setFinanceTab('savings');
+}
+
+function renderAccountsTab() {
+  const accs = state.bankAccounts || [];
+  const total = accs.reduce((s,a)=>s+(parseFloat(a.balance)||0),0);
+  const rows = accs.map((a,i)=>`<tr>
+    <td>${esc(a.bank)}</td>
+    <td><span class="badge badge-blue">${esc(a.type)}</span></td>
+    <td>$${parseFloat(a.balance||0).toFixed(2)}</td>
+    <td>${esc(a.notes||'')}</td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeAccount(${i})">✕</button></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Bank Accounts</div>
+      <div class="stat-value" style="font-size:20px">$${total.toFixed(2)}</div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="form-group"><label>Bank</label><input class="input" type="text" id="acc-bank" placeholder="Chase, BofA…"></div>
+      <div class="form-group"><label>Type</label><select class="select" id="acc-type"><option>Checking</option><option>Savings</option><option>Investment</option><option>Credit</option></select></div>
+      <div class="form-group"><label>Balance ($)</label><input class="input" type="text" id="acc-bal" placeholder="2500"></div>
+      <div class="form-group"><label>Notes</label><input class="input" type="text" id="acc-notes" placeholder="Optional"></div>
+    </div>
+    <button class="btn btn-primary btn-sm mb-3" onclick="addAccount()">+ Add Account</button>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Bank</th><th>Type</th><th>Balance</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No accounts added.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function addAccount() {
+  const bank = document.getElementById('acc-bank').value.trim();
+  const type = document.getElementById('acc-type').value;
+  const balance = document.getElementById('acc-bal').value.trim();
+  const notes = document.getElementById('acc-notes').value.trim();
+  if (!bank) return;
+  if (!Array.isArray(state.bankAccounts)) state.bankAccounts = [];
+  state.bankAccounts.push({bank,type,balance,notes});
+  save('bankAccounts');
+  setFinanceTab('accounts');
+}
+
+function removeAccount(i) {
+  state.bankAccounts.splice(i,1);
+  save('bankAccounts');
+  setFinanceTab('accounts');
+}
+
+function initFinance() {
+  if (!currentTabs.finance) currentTabs.finance = 'income';
+}
+
+/* ===========================
+   CAREER & GOALS
+=========================== */
+function renderCareer() {
+  const tab = currentTabs.career || 'tasks';
+  const tabs = ['Tasks','Projects','Meetings','Career','Goals','Academics'];
+  const tbar = tabs.map(t=>`<button class="tab-btn ${tab===t.toLowerCase()?'active':''}" onclick="setCareerTab('${t.toLowerCase()}')">${t}</button>`).join('');
+  return `<div class="section-header"><h1>Career & Goals</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="career-body">${renderCareerTab(tab)}</div>`;
+}
+
+function setCareerTab(tab) {
+  currentTabs.career = tab;
+  const el = document.getElementById('career-body');
+  if (el) el.innerHTML = renderCareerTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase()===tab));
+}
+
+function renderCareerTab(tab) {
+  if (tab==='tasks') return renderTasks();
+  if (tab==='projects') return renderProjects();
+  if (tab==='meetings') return renderMeetings();
+  if (tab==='career') return renderCareerDev();
+  if (tab==='goals') return renderGoals();
+  if (tab==='academics') return renderAcademics();
+  return '';
+}
+
+function renderTasks() {
+  const tasks = state.tasks || [];
+  const filter = currentTabs.taskFilter || 'All';
+  const filtered = filter==='All' ? tasks : tasks.filter(t=>t.status===filter);
+  const filterBtns = ['All','Todo','In Progress','Done'].map(f=>`<button class="btn btn-sm ${filter===f?'btn-primary':'btn-ghost'}" onclick="currentTabs.taskFilter='${f}';setCareerTab('tasks')">${f}</button>`).join('');
+  const rows = filtered.map((t,_i)=>{
+    const realIdx = tasks.indexOf(t);
+    return `<tr>
+      <td>${esc(t.title)}</td>
+      <td><span class="badge ${badgeForPriority(t.priority)}">${esc(t.priority)}</span></td>
+      <td>${esc(t.dueDate||'')}</td>
+      <td>
+        <select class="select" style="padding:4px 8px;font-size:12px" onchange="updateTask(${realIdx},'status',this.value)">
+          ${['Todo','In Progress','Done'].map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeTask(${realIdx})">✕</button></td>
+    </tr>`;
+  }).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Tasks</div>
+      <button class="btn btn-primary btn-sm" onclick="showTaskForm()">+ Add Task</button>
+    </div>
+    <div id="task-form" style="display:none" class="mb-3">
+      <div class="form-row">
+        <div class="form-group"><label>Title</label><input class="input" type="text" id="task-title" placeholder="Task name"></div>
+        <div class="form-group"><label>Priority</label><select class="select" id="task-priority"><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="form-group"><label>Due Date</label><input class="input" type="text" id="task-due" placeholder="YYYY-MM-DD"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addTask()">Add Task</button>
+    </div>
+    <div class="flex gap-2 mb-3">${filterBtns}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Task</th><th>Priority</th><th>Due Date</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No tasks yet.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function showTaskForm() {
+  const el = document.getElementById('task-form');
+  if (el) el.style.display = el.style.display==='none'?'block':'none';
+}
+
+function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  const priority = document.getElementById('task-priority').value;
+  const dueDate = document.getElementById('task-due').value.trim();
+  if (!title) return;
+  if (!Array.isArray(state.tasks)) state.tasks = [];
+  state.tasks.push({id:uid(),title,priority,dueDate,status:'Todo'});
+  save('tasks');
+  setCareerTab('tasks');
+}
+
+function updateTask(i, field, val) {
+  state.tasks[i][field] = val;
+  save('tasks');
+}
+
+function removeTask(i) {
+  state.tasks.splice(i,1);
+  save('tasks');
+  setCareerTab('tasks');
+}
+
+function renderProjects() {
+  const projs = state.projects || [];
+  const rows = projs.map((p,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center mb-2">
+      <input class="input flex-1 mr-2" type="text" value="${esc(p.name||'')}" placeholder="Project name"
+        onchange="state.projects[${i}].name=this.value;save('projects')" style="font-weight:700">
+      <select class="select" style="width:130px;padding:4px 8px;font-size:12px" onchange="state.projects[${i}].status=this.value;save('projects')">
+        ${['Planning','Active','On Hold','Completed'].map(s=>`<option ${p.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+      <button class="btn btn-danger btn-sm btn-icon ml-2" onclick="removeProject(${i})">✕</button>
+    </div>
+    <textarea class="textarea w-full" style="min-height:60px;margin-bottom:8px" placeholder="Description…"
+      onchange="state.projects[${i}].description=this.value;save('projects')">${esc(p.description||'')}</textarea>
+    <div class="form-row">
+      <div class="form-group"><label>Start</label><input class="input" type="text" value="${esc(p.startDate||'')}" placeholder="YYYY-MM-DD" onchange="state.projects[${i}].startDate=this.value;save('projects')"></div>
+      <div class="form-group"><label>End</label><input class="input" type="text" value="${esc(p.endDate||'')}" placeholder="YYYY-MM-DD" onchange="state.projects[${i}].endDate=this.value;save('projects')"></div>
+    </div>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Projects</div>
+      <button class="btn btn-primary btn-sm" onclick="addProject()">+ New Project</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No projects yet.</p>'}
+  </div>`;
+}
+
+function addProject() {
+  if (!Array.isArray(state.projects)) state.projects = [];
+  state.projects.push({id:uid(),name:'',description:'',status:'Planning',startDate:'',endDate:''});
+  save('projects');
+  setCareerTab('projects');
+}
+
+function removeProject(i) {
+  state.projects.splice(i,1);
+  save('projects');
+  setCareerTab('projects');
+}
+
+function renderMeetings() {
+  const meets = state.meetings || [];
+  const rows = meets.map((m,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center mb-2">
+      <input class="input flex-1 mr-2" type="text" value="${esc(m.title||'')}" placeholder="Meeting title"
+        onchange="state.meetings[${i}].title=this.value;save('meetings')" style="font-weight:600">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeMeeting(${i})">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input class="input" type="text" value="${esc(m.date||'')}" placeholder="YYYY-MM-DD" onchange="state.meetings[${i}].date=this.value;save('meetings')"></div>
+      <div class="form-group"><label>Time</label><input class="input" type="text" value="${esc(m.time||'')}" placeholder="2:00 PM" onchange="state.meetings[${i}].time=this.value;save('meetings')"></div>
+      <div class="form-group"><label>Attendees</label><input class="input" type="text" value="${esc(m.attendees||'')}" placeholder="Team members" onchange="state.meetings[${i}].attendees=this.value;save('meetings')"></div>
+    </div>
+    <textarea class="textarea w-full" style="min-height:60px" placeholder="Meeting notes, action items…"
+      onchange="state.meetings[${i}].notes=this.value;save('meetings')">${esc(m.notes||'')}</textarea>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Meetings</div>
+      <button class="btn btn-primary btn-sm" onclick="addMeeting()">+ Add Meeting</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No meetings yet.</p>'}
+  </div>`;
+}
+
+function addMeeting() {
+  if (!Array.isArray(state.meetings)) state.meetings = [];
+  state.meetings.push({id:uid(),title:'',date:'',time:'',attendees:'',notes:''});
+  save('meetings');
+  setCareerTab('meetings');
+}
+
+function removeMeeting(i) {
+  state.meetings.splice(i,1);
+  save('meetings');
+  setCareerTab('meetings');
+}
+
+function renderCareerDev() {
+  const skills = state.skills || [];
+  const reviews = state.reviews || [];
+  const wins = state.wins || [];
+  const skillRows = skills.map((s,i)=>`<div class="flex items-center gap-3 mb-2">
+    <input class="input flex-1" type="text" value="${esc(s.name||'')}" placeholder="Skill name"
+      onchange="state.skills[${i}].name=this.value;save('skills')">
+    <div class="flex gap-1">${[1,2,3,4,5].map(n=>`<span class="star ${(s.level||0)>=n?'lit':''}" onclick="setSkillLevel(${i},${n})">★</span>`).join('')}</div>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removeSkill(${i})">✕</button>
+  </div>`).join('');
+  const reviewRows = reviews.map((r,i)=>`<div class="flex justify-between items-center mb-2 p-2" style="border:1.5px solid var(--border);border-radius:8px">
+    <div><div style="font-size:13px">${esc(r.notes)}</div><div class="text-sm text-muted">${esc(r.date)}</div></div>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="removeReview(${i})">✕</button>
+  </div>`).join('');
+  const winRows = wins.map((w,i)=>`<div class="flex justify-between items-center mb-2 p-2" style="border:1.5px solid var(--border);border-radius:8px">
+    <span style="font-size:13.5px">🏆 ${esc(w)}</span>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="state.wins.splice(${i},1);save('wins');setCareerTab('career')">✕</button>
+  </div>`).join('');
+  return `
+  <div class="card mb-3">
+    <div class="card-title">Career Vision</div>
+    <textarea class="textarea w-full" style="min-height:100px" placeholder="Where do you want to be in 5 years? What's your professional mission?"
+      onchange="state.careerVision=this.value;save('careerVision')">${esc(state.careerVision||'')}</textarea>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <div class="card-title" style="margin-bottom:0">Skills</div>
+        <button class="btn btn-primary btn-sm" onclick="addSkill()">+ Add</button>
+      </div>
+      ${skillRows || '<p class="text-muted text-sm">Add skills and rate your proficiency.</p>'}
+    </div>
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <div class="card-title" style="margin-bottom:0">Professional Wins</div>
+        <button class="btn btn-primary btn-sm" onclick="addWin()">+ Add</button>
+      </div>
+      ${winRows || '<p class="text-muted text-sm">Log your achievements!</p>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Performance Reviews</div>
+      <button class="btn btn-primary btn-sm" onclick="addReview()">+ Add</button>
+    </div>
+    ${reviewRows || '<p class="text-muted text-sm">No reviews logged.</p>'}
+  </div>`;
+}
+
+function addSkill() {
+  if (!Array.isArray(state.skills)) state.skills = [];
+  state.skills.push({id:uid(),name:'',level:3});
+  save('skills');
+  setCareerTab('career');
+}
+
+function setSkillLevel(i, level) {
+  state.skills[i].level = level;
+  save('skills');
+  setCareerTab('career');
+}
+
+function removeSkill(i) {
+  state.skills.splice(i,1);
+  save('skills');
+  setCareerTab('career');
+}
+
+function addReview() {
+  const notes = prompt('Review notes:');
+  if (!notes) return;
+  if (!Array.isArray(state.reviews)) state.reviews = [];
+  state.reviews.push({date:todayStr(), notes});
+  save('reviews');
+  setCareerTab('career');
+}
+
+function removeReview(i) {
+  state.reviews.splice(i,1);
+  save('reviews');
+  setCareerTab('career');
+}
+
+function addWin() {
+  const win = prompt('What did you achieve?');
+  if (!win) return;
+  if (!Array.isArray(state.wins)) state.wins = [];
+  state.wins.push(win);
+  save('wins');
+  setCareerTab('career');
+}
+
+function renderGoals() {
+  const goals = state.goals || [];
+  const rows = goals.map((g,i)=>{
+    const pct = Math.min(100,Math.max(0,parseInt(g.progress)||0));
+    return `<div class="card mb-2" style="padding:14px">
+      <div class="flex justify-between items-center mb-2">
+        <input class="input flex-1 mr-2" type="text" value="${esc(g.title||'')}" placeholder="Goal title"
+          onchange="state.goals[${i}].title=this.value;save('goals')" style="font-weight:600">
+        <select class="select" style="width:130px;padding:4px 8px;font-size:12px" onchange="state.goals[${i}].status=this.value;save('goals')">
+          ${['Active','On Hold','Completed'].map(s=>`<option ${g.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <button class="btn btn-danger btn-sm btn-icon ml-2" onclick="removeGoal(${i})">✕</button>
+      </div>
+      <textarea class="textarea w-full" style="min-height:50px;margin-bottom:8px" placeholder="Description, why it matters…"
+        onchange="state.goals[${i}].description=this.value;save('goals')">${esc(g.description||'')}</textarea>
+      <div class="form-row">
+        <div class="form-group"><label>Target Date</label><input class="input" type="text" value="${esc(g.targetDate||'')}" placeholder="YYYY-MM-DD" onchange="state.goals[${i}].targetDate=this.value;save('goals')"></div>
+        <div class="form-group"><label>Progress (%)</label><input class="input" type="text" value="${esc(g.progress||'')}" placeholder="0–100" onchange="state.goals[${i}].progress=this.value;save('goals')"></div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${progressClass(pct)}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Goals</div>
+      <button class="btn btn-primary btn-sm" onclick="addGoal()">+ Add Goal</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No goals yet. What do you want to achieve?</p>'}
+  </div>`;
+}
+
+function addGoal() {
+  if (!Array.isArray(state.goals)) state.goals = [];
+  state.goals.push({id:uid(),title:'',description:'',targetDate:'',progress:'0',status:'Active'});
+  save('goals');
+  setCareerTab('goals');
+}
+
+function removeGoal(i) {
+  state.goals.splice(i,1);
+  save('goals');
+  setCareerTab('goals');
+}
+
+function renderAcademics() {
+  const ac = state.academics || {classes:[],assignments:[],studySessions:[]};
+  const subtab = currentTabs.acaTab || 'classes';
+  const tbar2 = ['Classes','Assignments','Study Sessions','GPA'].map(t=>{
+    const k = t.toLowerCase().replace(' ','');
+    return `<button class="btn btn-sm ${subtab===k?'btn-primary':'btn-ghost'}" onclick="currentTabs.acaTab='${k}';setCareerTab('academics')">${t}</button>`;
+  }).join('');
+
+  let body = `<div class="flex gap-2 mb-3">${tbar2}</div>`;
+
+  if (subtab==='classes') {
+    const classes = ac.classes||[];
+    const rows = classes.map((c,i)=>`<tr>
+      <td>${esc(c.name)}</td><td>${esc(c.instructor||'')}</td><td>${esc(c.schedule||'')}</td>
+      <td><input class="input" type="text" value="${esc(c.grade||'')}" style="width:60px" onchange="state.academics.classes[${i}].grade=this.value;save('academics')"></td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="state.academics.classes.splice(${i},1);save('academics');setCareerTab('academics')">✕</button></td>
+    </tr>`).join('');
+    body += `<div class="card"><div class="flex justify-between items-center mb-3">
+      <strong>Classes</strong><button class="btn btn-primary btn-sm" onclick="addClass()">+ Add Class</button></div>
+      <div id="class-form" style="display:none" class="mb-3">
+        <div class="form-row">
+          <div class="form-group"><label>Class Name</label><input class="input" type="text" id="cls-name" placeholder="Calculus 101"></div>
+          <div class="form-group"><label>Instructor</label><input class="input" type="text" id="cls-instr" placeholder="Prof. Smith"></div>
+          <div class="form-group"><label>Schedule</label><input class="input" type="text" id="cls-sched" placeholder="MWF 10am"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveClass()">Add</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Class</th><th>Instructor</th><th>Schedule</th><th>Grade</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No classes.</td></tr>'}</tbody></table></div>
+    </div>`;
+  }
+
+  if (subtab==='assignments') {
+    const asgn = ac.assignments||[];
+    const rows = asgn.map((a,i)=>`<tr>
+      <td>${esc(a.class||'')}</td><td>${esc(a.title)}</td><td>${esc(a.dueDate||'')}</td>
+      <td><span class="badge ${badgeForStatus(a.status)}">${esc(a.status)}</span></td>
+      <td>${esc(a.grade||'')}</td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="state.academics.assignments.splice(${i},1);save('academics');setCareerTab('academics')">✕</button></td>
+    </tr>`).join('');
+    body += `<div class="card"><div class="flex justify-between items-center mb-3">
+      <strong>Assignments</strong><button class="btn btn-primary btn-sm" onclick="addAssignment()">+ Add</button></div>
+      <div id="asgn-form" style="display:none" class="mb-3">
+        <div class="form-row">
+          <div class="form-group"><label>Class</label><input class="input" type="text" id="asgn-class" placeholder="Class name"></div>
+          <div class="form-group"><label>Title</label><input class="input" type="text" id="asgn-title" placeholder="Assignment name"></div>
+          <div class="form-group"><label>Due Date</label><input class="input" type="text" id="asgn-due" placeholder="YYYY-MM-DD"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveAssignment()">Add</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Class</th><th>Title</th><th>Due</th><th>Status</th><th>Grade</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="6" class="text-muted">No assignments.</td></tr>'}</tbody></table></div>
+    </div>`;
+  }
+
+  if (subtab==='studysessions') {
+    const ss = ac.studySessions||[];
+    const rows = ss.map((s,i)=>`<tr>
+      <td>${esc(s.date)}</td><td>${esc(s.subject)}</td><td>${esc(s.duration)}</td><td>${esc(s.notes||'')}</td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="state.academics.studySessions.splice(${i},1);save('academics');setCareerTab('academics')">✕</button></td>
+    </tr>`).join('');
+    body += `<div class="card"><div class="flex justify-between items-center mb-3">
+      <strong>Study Sessions</strong><button class="btn btn-primary btn-sm" onclick="addStudySession()">+ Log</button></div>
+      <div id="ss-form" style="display:none" class="mb-3">
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input class="input" type="text" id="ss-date" placeholder="YYYY-MM-DD" value="${todayStr()}"></div>
+          <div class="form-group"><label>Subject</label><input class="input" type="text" id="ss-subject" placeholder="Math"></div>
+          <div class="form-group"><label>Duration</label><input class="input" type="text" id="ss-dur" placeholder="2 hours"></div>
+          <div class="form-group"><label>Notes</label><input class="input" type="text" id="ss-notes" placeholder="Optional"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveStudySession()">Save</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Subject</th><th>Duration</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No sessions logged.</td></tr>'}</tbody></table></div>
+    </div>`;
+  }
+
+  if (subtab==='gpa') {
+    const classes = ac.classes || [];
+    const gradePoints = {A:4.0,'A-':3.7,'B+':3.3,B:3.0,'B-':2.7,'C+':2.3,C:2.0,'C-':1.7,'D+':1.3,D:1.0,F:0};
+    let totalCredits=0, totalPoints=0;
+    const rows = classes.filter(c=>c.grade&&c.credits).map(c=>{
+      const pts = gradePoints[c.grade]||0;
+      const credits = parseFloat(c.credits)||0;
+      totalCredits += credits;
+      totalPoints += pts * credits;
+      return `<tr><td>${esc(c.name)}</td>
+        <td><input class="input" type="text" value="${esc(c.credits||'')}" style="width:60px" placeholder="3" onchange="updateClassField(${classes.indexOf(c)},'credits',this.value)"></td>
+        <td><input class="input" type="text" value="${esc(c.grade||'')}" style="width:60px" placeholder="A" onchange="updateClassField(${classes.indexOf(c)},'grade',this.value)"></td>
+        <td>${pts.toFixed(1)}</td>
+      </tr>`;
+    }).join('');
+    const gpa = totalCredits ? (totalPoints/totalCredits).toFixed(2) : '—';
+    body += `<div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <strong>GPA Calculator</strong>
+        <div class="stat-value" style="font-size:24px">GPA: ${gpa}</div>
+      </div>
+      <p class="text-sm text-muted mb-3">Enter credits and grades for each class above. Grade scale: A=4.0, B+=3.3, B=3.0, C=2.0, etc.</p>
+      <div class="table-wrap"><table><thead><tr><th>Class</th><th>Credits</th><th>Grade</th><th>Points</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" class="text-muted">Add classes above and set credits/grades.</td></tr>'}</tbody></table></div>
+    </div>`;
+  }
+
+  return body;
+}
+
+function addClass() { const el=document.getElementById('class-form'); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
+function saveClass() {
+  const name=document.getElementById('cls-name').value.trim();
+  if (!name) return;
+  if (!state.academics) state.academics={classes:[],assignments:[],studySessions:[]};
+  if (!Array.isArray(state.academics.classes)) state.academics.classes=[];
+  state.academics.classes.push({id:uid(),name,instructor:document.getElementById('cls-instr').value.trim(),schedule:document.getElementById('cls-sched').value.trim(),grade:'',credits:''});
+  save('academics');
+  setCareerTab('academics');
+}
+function addAssignment() { const el=document.getElementById('asgn-form'); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
+function saveAssignment() {
+  const cls=document.getElementById('asgn-class').value.trim();
+  const title=document.getElementById('asgn-title').value.trim();
+  const due=document.getElementById('asgn-due').value.trim();
+  if (!title) return;
+  if (!state.academics) state.academics={classes:[],assignments:[],studySessions:[]};
+  if (!Array.isArray(state.academics.assignments)) state.academics.assignments=[];
+  state.academics.assignments.push({id:uid(),class:cls,title,dueDate:due,status:'Todo',grade:''});
+  save('academics');
+  setCareerTab('academics');
+}
+function addStudySession() { const el=document.getElementById('ss-form'); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
+function saveStudySession() {
+  const date=document.getElementById('ss-date').value.trim();
+  const subject=document.getElementById('ss-subject').value.trim();
+  const duration=document.getElementById('ss-dur').value.trim();
+  const notes=document.getElementById('ss-notes').value.trim();
+  if (!subject) return;
+  if (!state.academics) state.academics={classes:[],assignments:[],studySessions:[]};
+  if (!Array.isArray(state.academics.studySessions)) state.academics.studySessions=[];
+  state.academics.studySessions.push({date,subject,duration,notes});
+  save('academics');
+  setCareerTab('academics');
+}
+function updateClassField(i,field,val) {
+  if (state.academics&&state.academics.classes[i]) { state.academics.classes[i][field]=val; save('academics'); }
+}
+
+function initCareer() {
+  if (!currentTabs.career) currentTabs.career = 'tasks';
+  if (!currentTabs.acaTab) currentTabs.acaTab = 'classes';
+}
+
+/* ===========================
+   SOCIAL MEDIA HUB
+=========================== */
+function renderSocial() {
+  const tab = currentTabs.social || 'platforms';
+  const tbar = ['Platforms','Content Calendar','Brand Deals'].map(t=>{
+    const k = t.toLowerCase().replace(/ /g,'');
+    return `<button class="tab-btn ${tab===k?'active':''}" onclick="setSocialTab('${k}')">${t}</button>`;
+  }).join('');
+  return `<div class="section-header"><h1>Social Media Hub</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="social-body">${renderSocialTab(tab)}</div>`;
+}
+
+function setSocialTab(tab) {
+  currentTabs.social = tab;
+  const el = document.getElementById('social-body');
+  if (el) el.innerHTML = renderSocialTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(/ /g,'')=== tab));
+}
+
+function renderSocialTab(tab) {
+  if (tab==='platforms') return renderPlatforms();
+  if (tab==='contentcalendar') return renderContentCal();
+  if (tab==='branddeals') return renderBrandDeals();
+  return '';
+}
+
+function renderPlatforms() {
+  const plats = state.platforms || [];
+  const cards = plats.map((p,i)=>{
+    const followers = parseFloat(p.followers)||0;
+    const goal = parseFloat(p.goal)||0;
+    const pct = goal ? Math.min(100,Math.round(followers/goal*100)) : 0;
+    return `<div class="card">
+      <div class="flex justify-between items-center mb-2">
+        <div>
+          <div style="font-weight:700;font-size:15px">${esc(p.platform)}</div>
+          <div class="text-sm text-muted">@${esc(p.username)}</div>
+        </div>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removePlatform(${i})">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Followers</label><input class="input" type="text" value="${esc(p.followers||'')}" placeholder="10000" onchange="state.platforms[${i}].followers=this.value;save('platforms')"></div>
+        <div class="form-group"><label>Goal</label><input class="input" type="text" value="${esc(p.goal||'')}" placeholder="50000" onchange="state.platforms[${i}].goal=this.value;save('platforms')"></div>
+        <div class="form-group"><label>Monthly Earnings ($)</label><input class="input" type="text" value="${esc(p.earnings||'')}" placeholder="0" onchange="state.platforms[${i}].earnings=this.value;save('platforms')"></div>
+      </div>
+      ${goal?`<div class="progress-wrap"><div class="progress-fill progress-blue" style="width:${pct}%"></div></div>
+      <div class="text-sm text-muted mt-1">${pct}% to follower goal</div>`:''}
+      <label style="font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:8px">
+        <input type="checkbox" ${p.monetized?'checked':''} onchange="state.platforms[${i}].monetized=this.checked;save('platforms')">
+        Monetization enabled
+      </label>
+    </div>`;
+  }).join('');
+  return `<div class="flex justify-between items-center mb-3">
+    <h2 style="font-family:var(--font-heading)">Platforms</h2>
+    <button class="btn btn-primary" onclick="showAddPlatformForm()">+ Add Platform</button>
+  </div>
+  <div id="add-plat-form" style="display:none" class="card mb-3">
+    <div class="form-row">
+      <div class="form-group"><label>Platform</label><input class="input" type="text" id="plat-name" placeholder="Instagram, TikTok, YouTube…"></div>
+      <div class="form-group"><label>Username</label><input class="input" type="text" id="plat-user" placeholder="@yourhandle"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="addPlatform()">Add</button>
+  </div>
+  <div class="grid-3">${cards||'<div class="card"><p class="text-muted">No platforms yet.</p></div>'}</div>`;
+}
+
+function showAddPlatformForm() {
+  const el = document.getElementById('add-plat-form');
+  if (el) el.style.display = el.style.display==='none'?'block':'none';
+}
+
+function addPlatform() {
+  const platform = document.getElementById('plat-name').value.trim();
+  const username = document.getElementById('plat-user').value.trim();
+  if (!platform) return;
+  if (!Array.isArray(state.platforms)) state.platforms = [];
+  state.platforms.push({id:uid(),platform,username,followers:'',goal:'',earnings:'',monetized:false});
+  save('platforms');
+  setSocialTab('platforms');
+}
+
+function removePlatform(i) {
+  state.platforms.splice(i,1);
+  save('platforms');
+  setSocialTab('platforms');
+}
+
+function renderContentCal() {
+  const items = state.contentCalendar || [];
+  const view = currentTabs.contentView || 'list';
+  const viewBtns = ['List','Week','Month'].map(v=>`<button class="btn btn-sm ${view===v.toLowerCase()?'btn-primary':'btn-ghost'}" onclick="currentTabs.contentView='${v.toLowerCase()}';setSocialTab('contentcalendar')">${v}</button>`).join('');
+  const statusColors = {Idea:'badge-gray',Drafted:'badge-yellow',Scheduled:'badge-blue',Published:'badge-green'};
+  let viewHtml = '';
+  if (view==='list') {
+    const sorted = [...items].sort((a,b)=>a.date.localeCompare(b.date));
+    const rows = sorted.map((item,_i)=>{
+      const realIdx = items.indexOf(item);
+      return `<tr>
+        <td>${esc(item.date)}</td>
+        <td>${esc(item.platform)}</td>
+        <td>${esc(item.title)}</td>
+        <td><span class="badge ${statusColors[item.status]||'badge-gray'}">${esc(item.status)}</span></td>
+        <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeContent(${realIdx})">✕</button></td>
+      </tr>`;
+    }).join('');
+    viewHtml = `<div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Platform</th><th>Title</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="text-muted">No content planned.</td></tr>'}</tbody>
+    </table></div>`;
+  } else if (view==='week') {
+    const cells = DAYS.map((d,i)=>{
+      const dayItems = items.filter(it => {
+        if (!it.date) return false;
+        const nd = new Date(it.date+'T00:00:00'); return nd.getDay() === (i===6?0:i+1);
+      });
+      return `<div>
+        <div style="font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;text-align:center">${DAY_LABELS[i]}</div>
+        ${dayItems.map(it=>`<div style="font-size:11px;padding:4px 6px;border-radius:5px;margin-bottom:3px;background:var(--accent-light);color:var(--accent)">${esc(it.title)}</div>`).join('')}
+      </div>`;
+    }).join('');
+    viewHtml = `<div class="grid-7">${cells}</div>`;
+  } else {
+    viewHtml = '<p class="text-muted text-sm">Month view: Use List view to see all planned content by date.</p>';
+  }
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Content Calendar</div>
+      <div class="flex gap-2">${viewBtns}</div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="form-group"><label>Title</label><input class="input" type="text" id="cont-title" placeholder="Post idea…"></div>
+      <div class="form-group"><label>Platform</label><input class="input" type="text" id="cont-plat" placeholder="Instagram, YouTube…"></div>
+      <div class="form-group"><label>Date</label><input class="input" type="text" id="cont-date" placeholder="YYYY-MM-DD"></div>
+      <div class="form-group"><label>Status</label>
+        <select class="select" id="cont-status"><option>Idea</option><option>Drafted</option><option>Scheduled</option><option>Published</option></select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm mb-3" onclick="addContent()">+ Add Content</button>
+    ${viewHtml}
+  </div>`;
+}
+
+function addContent() {
+  const title = document.getElementById('cont-title').value.trim();
+  const platform = document.getElementById('cont-plat').value.trim();
+  const date = document.getElementById('cont-date').value.trim();
+  const status = document.getElementById('cont-status').value;
+  if (!title) return;
+  if (!Array.isArray(state.contentCalendar)) state.contentCalendar = [];
+  state.contentCalendar.push({id:uid(),title,platform,date,status});
+  save('contentCalendar');
+  setSocialTab('contentcalendar');
+}
+
+function removeContent(i) {
+  state.contentCalendar.splice(i,1);
+  save('contentCalendar');
+  setSocialTab('contentcalendar');
+}
+
+function renderBrandDeals() {
+  const deals = state.brandDeals || [];
+  const rows = deals.map((d,i)=>`<div class="card mb-2" style="padding:14px">
+    <div class="flex justify-between items-center mb-2">
+      <input class="input flex-1 mr-2" type="text" value="${esc(d.brand||'')}" placeholder="Brand name"
+        onchange="state.brandDeals[${i}].brand=this.value;save('brandDeals')" style="font-weight:600">
+      <select class="select" style="width:140px;padding:4px 8px;font-size:12px" onchange="state.brandDeals[${i}].status=this.value;save('brandDeals')">
+        ${['Negotiating','Confirmed','Completed'].map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+      <button class="btn btn-danger btn-sm btn-icon ml-2" onclick="removeBrandDeal(${i})">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Platform</label><input class="input" type="text" value="${esc(d.platform||'')}" placeholder="Instagram" onchange="state.brandDeals[${i}].platform=this.value;save('brandDeals')"></div>
+      <div class="form-group"><label>Payment ($)</label><input class="input" type="text" value="${esc(d.payment||'')}" placeholder="500" onchange="state.brandDeals[${i}].payment=this.value;save('brandDeals')"></div>
+      <div class="form-group"><label>Due Date</label><input class="input" type="text" value="${esc(d.dueDate||'')}" placeholder="YYYY-MM-DD" onchange="state.brandDeals[${i}].dueDate=this.value;save('brandDeals')"></div>
+    </div>
+    <div class="form-group"><label>Deliverables</label>
+      <textarea class="textarea w-full" style="min-height:50px" placeholder="2 Instagram posts, 1 story…"
+        onchange="state.brandDeals[${i}].deliverables=this.value;save('brandDeals')">${esc(d.deliverables||'')}</textarea>
+    </div>
+  </div>`).join('');
+  return `<div class="card">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title" style="margin-bottom:0">Brand Deals</div>
+      <button class="btn btn-primary btn-sm" onclick="addBrandDeal()">+ Add Deal</button>
+    </div>
+    ${rows || '<p class="text-muted text-sm">No brand deals yet.</p>'}
+  </div>`;
+}
+
+function addBrandDeal() {
+  if (!Array.isArray(state.brandDeals)) state.brandDeals = [];
+  state.brandDeals.push({id:uid(),brand:'',platform:'',payment:'',dueDate:'',deliverables:'',status:'Negotiating'});
+  save('brandDeals');
+  setSocialTab('branddeals');
+}
+
+function removeBrandDeal(i) {
+  state.brandDeals.splice(i,1);
+  save('brandDeals');
+  setSocialTab('branddeals');
+}
+
+function initSocial() {
+  if (!currentTabs.social) currentTabs.social = 'platforms';
+  if (!currentTabs.contentView) currentTabs.contentView = 'list';
+}
+
+/* ===========================
+   NOTES & JOURNAL
+=========================== */
+function renderNotes() {
+  const tab = currentTabs.notes || 'journal';
+  const tbar = ['Journal','Quick Notes','Ideas'].map(t=>{
+    const k = t.toLowerCase().replace(' ','');
+    return `<button class="tab-btn ${tab===k?'active':''}" onclick="setNotesTab('${k}')">${t}</button>`;
+  }).join('');
+  return `<div class="section-header"><h1>Notes & Journal</h1></div>
+  <div class="tab-bar">${tbar}</div>
+  <div id="notes-body">${renderNotesTab(tab)}</div>`;
+}
+
+function setNotesTab(tab) {
+  currentTabs.notes = tab;
+  const el = document.getElementById('notes-body');
+  if (el) el.innerHTML = renderNotesTab(tab);
+  document.querySelectorAll('#app-content .tab-btn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(' ','')=== tab));
+}
+
+function renderNotesTab(tab) {
+  if (tab==='journal') return renderJournal();
+  if (tab==='quicknotes') return renderQuickNotes();
+  if (tab==='ideas') return renderIdeas();
+  return '';
+}
+
+function renderJournal() {
+  const entries = state.journalEntries || [];
+  const search = currentTabs.journalSearch || '';
+  const filtered = search
+    ? entries.filter(e=>(e.body+e.tag+e.mood+e.date).toLowerCase().includes(search.toLowerCase()))
+    : entries;
+  const entryHtml = [...filtered].reverse().map((e,i)=>{
+    const realIdx = entries.indexOf(e);
+    return `<div class="journal-entry">
+      <div class="journal-entry-header" onclick="toggleJournalEntry(this)">
+        <span style="font-size:20px">${e.mood||'📓'}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13.5px">${esc(e.date)}</div>
+          <div class="text-sm text-muted">${e.tag?'#'+esc(e.tag):''} ${esc((e.body||'').slice(0,60))}${(e.body||'').length>60?'…':''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="event.stopPropagation();removeJournalEntry(${realIdx})">✕</button>
+      </div>
+      <div class="journal-entry-body">${esc(e.body).replace(/\n/g,'<br>')}</div>
+    </div>`;
+  }).join('');
+  return `<div class="grid-2">
+    <div class="card">
+      <div class="card-title">New Entry</div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input class="input" type="text" id="j-date" placeholder="YYYY-MM-DD" value="${todayStr()}"></div>
+        <div class="form-group"><label>Mood</label>
+          <div class="mood-picker" style="margin:0">${MOODS.map(m=>`<button class="mood-btn" onclick="selectJournalMood('${m}',this)">${m}</button>`).join('')}</div>
+        </div>
+        <div class="form-group"><label>Tag</label><input class="input" type="text" id="j-tag" placeholder="gratitude, reflection…"></div>
+      </div>
+      <textarea class="textarea w-full mb-3" id="j-body" style="min-height:180px" placeholder="Write your thoughts…"></textarea>
+      <button class="btn btn-primary" onclick="saveJournalEntry()">Save Entry</button>
+    </div>
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <div class="card-title" style="margin-bottom:0">Past Entries (${entries.length})</div>
+      </div>
+      <input class="input w-full mb-3" type="text" placeholder="Search entries…" value="${esc(search)}"
+        oninput="currentTabs.journalSearch=this.value;setNotesTab('journal')">
+      ${entryHtml || '<p class="text-muted text-sm">No entries yet. Start journaling!</p>'}
+    </div>
+  </div>`;
+}
+
+let journalMood = '';
+function selectJournalMood(m, btn) {
+  journalMood = m;
+  document.querySelectorAll('#notes-body .mood-picker .mood-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function saveJournalEntry() {
+  const date = document.getElementById('j-date').value.trim();
+  const body = document.getElementById('j-body').value.trim();
+  const tag = document.getElementById('j-tag').value.trim();
+  if (!body) return;
+  if (!Array.isArray(state.journalEntries)) state.journalEntries = [];
+  state.journalEntries.push({id:uid(),date,mood:journalMood||'📓',tag,body});
+  journalMood = '';
+  save('journalEntries');
+  setNotesTab('journal');
+}
+
+function removeJournalEntry(i) {
+  state.journalEntries.splice(i,1);
+  save('journalEntries');
+  setNotesTab('journal');
+}
+
+function toggleJournalEntry(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function renderQuickNotes() {
+  return `<div class="card">
+    <div class="card-title">Quick Notes</div>
+    <textarea class="textarea w-full" style="min-height:400px;font-size:14px;line-height:1.7"
+      placeholder="Your quick notes, reminders, ideas…"
+      onchange="state.quickNotes=this.value;save('quickNotes')">${esc(state.quickNotes||'')}</textarea>
+  </div>`;
+}
+
+function renderIdeas() {
+  const ideas = state.ideas || [];
+  const cats = ['All','Business','Creative','Personal','Other'];
+  const filter = currentTabs.ideaFilter || 'All';
+  const filtered = filter==='All' ? ideas : ideas.filter(i=>i.category===filter);
+  const catBtns = cats.map(c=>`<button class="btn btn-sm ${filter===c?'btn-primary':'btn-ghost'}" onclick="currentTabs.ideaFilter='${c}';setNotesTab('ideas')">${c}</button>`).join('');
+  const cards = [...filtered].reverse().map((idea,_i)=>{
+    const realIdx = ideas.indexOf(idea);
+    return `<div class="card" style="padding:14px;border:${idea.starred?'2px solid var(--accent)':'1.5px solid var(--border)'}">
+      <div class="flex justify-between items-center mb-1">
+        <span class="badge badge-gray">${esc(idea.category)}</span>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleIdeaStar(${realIdx})">${idea.starred?'⭐':'☆'}</button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="removeIdea(${realIdx})">✕</button>
+        </div>
+      </div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(idea.title)}</div>
+      <div style="font-size:13px;color:var(--text-muted)">${esc(idea.body)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="card mb-3">
+    <div class="card-title">Capture an Idea</div>
+    <div class="form-row">
+      <div class="form-group"><label>Title</label><input class="input" type="text" id="idea-title" placeholder="Idea title"></div>
+      <div class="form-group"><label>Category</label>
+        <select class="select" id="idea-cat"><option>Business</option><option>Creative</option><option>Personal</option><option>Other</option></select>
+      </div>
+    </div>
+    <textarea class="textarea w-full mb-2" id="idea-body" placeholder="Describe your idea…" rows="3"></textarea>
+    <button class="btn btn-primary btn-sm" onclick="addIdea()">Save Idea</button>
+  </div>
+  <div class="flex gap-2 mb-3">${catBtns}</div>
+  <div class="grid-3">${cards||'<div class="card"><p class="text-muted">No ideas yet. Capture your first one!</p></div>'}</div>`;
+}
+
+function addIdea() {
+  const title = document.getElementById('idea-title').value.trim();
+  const body = document.getElementById('idea-body').value.trim();
+  const category = document.getElementById('idea-cat').value;
+  if (!title) return;
+  if (!Array.isArray(state.ideas)) state.ideas = [];
+  state.ideas.push({id:uid(),title,body,category,starred:false});
+  save('ideas');
+  setNotesTab('ideas');
+}
+
+function removeIdea(i) {
+  state.ideas.splice(i,1);
+  save('ideas');
+  setNotesTab('ideas');
+}
+
+function toggleIdeaStar(i) {
+  state.ideas[i].starred = !state.ideas[i].starred;
+  save('ideas');
+  setNotesTab('ideas');
+}
+
+function initNotes() {
+  if (!currentTabs.notes) currentTabs.notes = 'journal';
+}
+
+/* ===========================
+   SETTINGS
+=========================== */
+function renderSettings() {
+  const themes = [
+    {id:'blackwhite',label:'Black & White',bar:'#1a1a1a',stripe:'#1a1a1a',double:true},
+    {id:'blush',label:'Soft Blush',bar:'#c4768a',stripe:'linear-gradient(135deg,#EFCED7,#e8b5c0)'},
+    {id:'blue',label:'Serene Blue',bar:'#79A3C3',stripe:'linear-gradient(135deg,#79A3C3,#b0cede)'}
+  ];
+  const themePreviews = themes.map(t=>`<div class="theme-option ${state.theme===t.id?'selected':''}" onclick="changeTheme('${t.id}')">
+    <div class="theme-preview">
+      <div class="theme-preview-bar" style="background:${t.bar}"></div>
+      <div class="theme-preview-main">
+        <div style="height:4px;border-radius:2px;background:${t.stripe};margin-bottom:4px"></div>
+        <div class="theme-preview-line"></div>
+        <div class="theme-preview-line" style="width:60%"></div>
+      </div>
+    </div>
+    <p>${t.label}</p>
+  </div>`).join('');
+  return `
+  <div class="section-header"><h1>Settings</h1></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Profile</div>
+      <div class="form-group"><label>Your Name</label>
+        <input class="input" type="text" value="${esc(state.userName||'')}" placeholder="Your name"
+          onchange="state.userName=this.value;save('userName');updateSidebarUser()">
+      </div>
+      <div class="form-group"><label>Cover Photo</label>
+        <button class="btn btn-secondary" onclick="document.getElementById('settings-cover').click()">
+          ${state.coverPhoto ? '✏️ Change Cover Photo' : '📷 Upload Cover Photo'}
+        </button>
+        <input type="file" id="settings-cover" accept="image/*" style="display:none" onchange="handleCoverUpload(this)">
+        ${state.coverPhoto ? `<div class="mt-2"><img src="${state.coverPhoto}" style="height:60px;border-radius:8px;object-fit:cover"></div>` : ''}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Account</div>
+      <div class="form-group"><label>Email</label>
+        <input class="input" type="email" value="${esc(currentUser ? currentUser.email : '')}" readonly style="background:var(--bg);cursor:default">
+      </div>
+      <div class="flex flex-col gap-3 mt-2">
+        <button class="btn btn-secondary" onclick="sendPasswordReset()">🔑 Send Password Reset Email</button>
+        <button class="btn btn-danger" onclick="doLogout()">🚪 Sign Out</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Theme</div>
+    <div class="theme-options">${themePreviews}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Data</div>
+    <div class="flex gap-3">
+      <button class="btn btn-secondary" onclick="exportData()">⬇️ Export All Data</button>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All Data</button>
+    </div>
+  </div>`;
+}
+
+function changeTheme(t) {
+  applyTheme(t);
+  save('theme');
+  renderSection('settings');
+}
+
+function clearAllData() {
+  if (!confirm('This will permanently delete ALL your planner data. Are you sure?')) return;
+  if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+  // Delete all rows from Supabase
+  if (currentUser) {
+    sb.from('user_data').delete().eq('user_id', currentUser.id).then(()=>{
+      // Reset state (keep theme and user info)
+      const savedTheme = state.theme;
+      const savedName = state.userName;
+      Object.keys(state).forEach(k=>{ if(k!=='theme'&&k!=='userName'&&k!=='coverPhoto') state[k]=Array.isArray(state[k])?[]:typeof state[k]==='object'?{}:''; });
+      state.theme = savedTheme;
+      state.userName = savedName;
+      initHabits();
+      alert('All data cleared.');
+      renderSection('settings');
+    });
+  }
+}
+
+function initSettings() {}
+
+/* ===========================
+   APP INIT
+=========================== */
+// Keyboard shortcut: Enter on auth fields
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const loginPass = document.getElementById('login-password');
+    const signupPass = document.getElementById('signup-password');
+    if (document.activeElement === loginPass) doLogin();
+    if (document.activeElement === signupPass) doSignup();
+  }
+});
+</script>
+</body>
+</html>

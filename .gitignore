@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+node_modules/
+.vercel/
+part1.html
+part2.html
+part3.js
+part4a.js
+part4b.js

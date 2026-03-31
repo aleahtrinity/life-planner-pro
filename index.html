@@ -458,14 +458,37 @@ let pendingSaves = {};
 function showLogin(){
   document.getElementById('login-form').style.display='block';
   document.getElementById('signup-form').style.display='none';
+  document.getElementById('forgot-form').style.display='none';
   document.getElementById('auth-subtitle').textContent='Sign in to access your planner';
   document.getElementById('auth-error').style.display='none';
 }
 function showSignup(){
   document.getElementById('login-form').style.display='none';
   document.getElementById('signup-form').style.display='block';
+  document.getElementById('forgot-form').style.display='none';
   document.getElementById('auth-subtitle').textContent='Create your free account';
   document.getElementById('auth-error').style.display='none';
+}
+function showForgotPassword(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('signup-form').style.display='none';
+  document.getElementById('forgot-form').style.display='block';
+  document.getElementById('auth-subtitle').textContent='Reset your password';
+  document.getElementById('auth-error').style.display='none';
+}
+async function sendPasswordReset(){
+  const email=document.getElementById('forgot-email').value.trim();
+  if(!email){showAuthError('Please enter your email address.');return;}
+  const{error}=await supabase.auth.resetPasswordForEmail(email,{
+    redirectTo:'https://life-planner-pro-swart.vercel.app'
+  });
+  if(error){showAuthError(error.message);}
+  else{
+    const el=document.getElementById('auth-error');
+    el.style.background='#f0fff4';el.style.borderColor='#9ae6b4';el.style.color='#276749';
+    el.textContent='Check your email for a password reset link.';
+    el.style.display='block';
+  }
 }
 function showAuthError(msg){
   const el=document.getElementById('auth-error');
@@ -505,6 +528,8 @@ window.signUp = signUp;
 window.signOut = signOut;
 window.showLogin = showLogin;
 window.showSignup = showSignup;
+window.showForgotPassword = showForgotPassword;
+window.sendPasswordReset = sendPasswordReset;
 
 // ── DATA SYNC ────────────────────────────────────
 function showSaving(){
@@ -700,7 +725,12 @@ body.theme-blue .auth-btn{background:#79a3c3;color:#fff}
       <div class="auth-field"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"/></div>
       <div class="auth-field"><label>Password</label><input type="password" id="login-password" placeholder="Your password"/></div>
       <button class="auth-btn" onclick="signIn()">Sign In</button>
-      <div class="auth-switch">Don't have an account? <a onclick="showSignup()">Create one</a></div>
+      <div class="auth-switch">Don't have an account? <a onclick="showSignup()">Create one</a> · <a onclick="showForgotPassword()">Forgot password?</a></div>
+    </div>
+    <div id="forgot-form" style="display:none">
+      <div class="auth-field"><label>Email</label><input type="email" id="forgot-email" placeholder="you@email.com"/></div>
+      <button class="auth-btn" onclick="sendPasswordReset()">Send Reset Link</button>
+      <div class="auth-switch"><a onclick="showLogin()">← Back to sign in</a></div>
     </div>
     <div id="signup-form" style="display:none">
       <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="you@email.com"/></div>

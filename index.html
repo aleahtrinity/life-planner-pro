@@ -440,7 +440,9 @@ body.theme-blue input[type=text]:focus,body.theme-blue textarea:focus,body.theme
 
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+window.addEventListener('load', async function() {
 // ══════════════════════════════════════════════
 // SUPABASE SETUP
 // ══════════════════════════════════════════════
@@ -496,6 +498,13 @@ async function signOut(){
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('app').style.display='none';
 }
+
+// Expose auth functions to global scope for HTML onclick handlers
+window.signIn = signIn;
+window.signUp = signUp;
+window.signOut = signOut;
+window.showLogin = showLogin;
+window.showSignup = showSignup;
 
 // ── DATA SYNC ────────────────────────────────────
 function showSaving(){
@@ -642,12 +651,11 @@ supabase.auth.onAuthStateChange(async(event, session)=>{
   }
 });
 
-// Hide app until auth confirmed
-document.addEventListener('DOMContentLoaded',()=>{
-  const appEl=document.getElementById('app');
-  if(appEl)appEl.style.display='none';
-});
+// Hide app until auth is confirmed
+const _appEl = document.getElementById('app');
+if(_appEl) _appEl.style.display = 'none';
 
+}); // end window.addEventListener('load')
 </script>
 <style>
 #auth-screen{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Jost',sans-serif}

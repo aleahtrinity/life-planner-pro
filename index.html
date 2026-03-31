@@ -442,9 +442,9 @@ body.theme-blue input[type=text]:focus,body.theme-blue textarea:focus,body.theme
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-window.addEventListener('load', async function() {
 // ══════════════════════════════════════════════
-// SUPABASE SETUP
+// SUPABASE SETUP — initialized immediately so
+// auth functions are available before load fires
 // ══════════════════════════════════════════════
 const SUPA_URL = 'https://ajxbatceyclfennrtbbz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqeGJhdGNleWNsZmVubnJ0YmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTIwNTQsImV4cCI6MjA5MDMyODA1NH0.XgnxwnDsZdEBVB5diAbQJb1P-OIrha97j3gT_AGQww0';
@@ -495,21 +495,11 @@ function showAuthError(msg){
   el.textContent=msg;el.style.display='block';
 }
 
-async function isApprovedEmail(email){
-  const{data,error}=await supabase
-    .from('approved_users')
-    .select('email')
-    .eq('email',email.toLowerCase().trim())
-    .maybeSingle();
-  if(error){console.warn('Approval check error:',error.message);}
-  return!!data;
-}
-
 async function signIn(){
   const email=document.getElementById('login-email').value.trim();
   const password=document.getElementById('login-password').value;
   if(!email||!password){showAuthError('Please fill in all fields.');return;}
-  const approved=await isApprovedEmail(email);
+  const{data:approved}=await supabase.from('approved_users').select('email').eq('email',email).single();
   if(!approved){showAuthError('Access is by invitation only. Please purchase to get access.');return;}
   const{error}=await supabase.auth.signInWithPassword({email,password});
   if(error)showAuthError(error.message);
@@ -522,7 +512,7 @@ async function signUp(){
   if(!email||!password){showAuthError('Please fill in all fields.');return;}
   if(password.length<6){showAuthError('Password must be at least 6 characters.');return;}
   if(password!==confirm){showAuthError('Passwords do not match.');return;}
-  const approved=await isApprovedEmail(email);
+  const{data:approved}=await supabase.from('approved_users').select('email').eq('email',email).single();
   if(!approved){showAuthError('Access is by invitation only. Please purchase to get access.');return;}
   const{error}=await supabase.auth.signUp({email,password});
   if(error)showAuthError(error.message);
@@ -536,15 +526,6 @@ async function signOut(){
   document.getElementById('app').style.display='none';
 }
 
-// Expose auth functions to global scope for HTML onclick handlers
-window.signIn = signIn;
-window.signUp = signUp;
-window.signOut = signOut;
-window.showLogin = showLogin;
-window.showSignup = showSignup;
-window.showForgotPassword = showForgotPassword;
-window.sendPasswordReset = sendPasswordReset;
-
 // ── DATA SYNC ────────────────────────────────────
 function showSaving(){
   const el=document.getElementById('save-indicator');
@@ -556,11 +537,8 @@ function showSaved(){
   setTimeout(()=>el.classList.remove('show'),1500);
 }
 
-// Override the save function to use Supabase
 async function save(key, value){
-  // Always save to localStorage as fallback
   try{localStorage.setItem('lp_'+key, JSON.stringify(value));}catch(e){}
-  // Debounce Supabase save
   if(!currentUser)return;
   pendingSaves[key]=value;
   clearTimeout(saveTimer);
@@ -585,13 +563,6 @@ async function flushSaves(){
   if(!error)showSaved();
 }
 
-// Also patch S.set to sync
-const _originalSset = S.set.bind(S);
-S.set = function(key, value){
-  _originalSset(key, value);
-  save(key, value);
-};
-
 async function loadAllData(){
   if(!currentUser)return;
   const{data,error}=await supabase
@@ -599,7 +570,6 @@ async function loadAllData(){
     .select('key,value')
     .eq('user_id',currentUser.id);
   if(error||!data)return;
-  // Load into localStorage so all existing functions work unchanged
   data.forEach(row=>{
     try{localStorage.setItem('lp_'+row.key, row.value);}catch(e){}
   });
@@ -621,7 +591,26 @@ async function completePasswordReset(){
     document.getElementById('reset-password-form').style.display='none';
   }
 }
-window.completePasswordReset=completePasswordReset;
+
+// Expose all functions to global scope for HTML onclick handlers
+window.signIn = signIn;
+window.signUp = signUp;
+window.signOut = signOut;
+window.showLogin = showLogin;
+window.showSignup = showSignup;
+window.showForgotPassword = showForgotPassword;
+window.sendPasswordReset = sendPasswordReset;
+window.completePasswordReset = completePasswordReset;
+
+// ── DEFERRED: patch S.set + start auth listener after all scripts load ──
+window.addEventListener('load', function() {
+
+// Patch S.set to mirror writes to Supabase (S is defined in a later script block)
+const _originalSset = S.set.bind(S);
+S.set = function(key, value){
+  _originalSset(key, value);
+  save(key, value);
+};
 
 // ── AUTH STATE LISTENER ──────────────────────────
 supabase.auth.onAuthStateChange(async(event, session)=>{

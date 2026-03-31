@@ -442,157 +442,161 @@ body.theme-blue input[type=text]:focus,body.theme-blue textarea:focus,body.theme
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-// ══════════════════════════════════════════════
-// SUPABASE SETUP — initialized immediately so
-// auth functions are available before load fires
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+// AUTH + SUPABASE
+//
+// Strategy: declare supabase as a let at top scope so all functions
+// can close over it. Define and assign every window.* function
+// immediately at parse time — before any event handlers fire — so
+// onclick buttons are never undefined. Initialize the actual Supabase
+// client inside window.load where the CDN is guaranteed to be ready.
+// ══════════════════════════════════════════════════════════════════════
+
 const SUPA_URL = 'https://ajxbatceyclfennrtbbz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqeGJhdGNleWNsZmVubnJ0YmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTIwNTQsImV4cCI6MjA5MDMyODA1NH0.XgnxwnDsZdEBVB5diAbQJb1P-OIrha97j3gT_AGQww0';
-const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Initialized on window.load; all auth functions close over this variable.
+let supabase = null;
 
 let currentUser = null;
 let saveTimer = null;
 let pendingSaves = {};
 
-// ── AUTH FUNCTIONS ──────────────────────────────
-function showLogin(){
-  document.getElementById('login-form').style.display='block';
-  document.getElementById('signup-form').style.display='none';
-  document.getElementById('forgot-form').style.display='none';
-  document.getElementById('auth-subtitle').textContent='Sign in to access your planner';
-  document.getElementById('auth-error').style.display='none';
+// ── UI HELPERS ─────────────────────────────────────────────────────────
+function showAuthError(msg) {
+  var el = document.getElementById('auth-error');
+  el.style.background = '';
+  el.style.borderColor = '';
+  el.style.color = '';
+  el.textContent = msg;
+  el.style.display = 'block';
 }
-function showSignup(){
-  document.getElementById('login-form').style.display='none';
-  document.getElementById('signup-form').style.display='block';
-  document.getElementById('forgot-form').style.display='none';
-  document.getElementById('auth-subtitle').textContent='Create your free account';
-  document.getElementById('auth-error').style.display='none';
+
+function showAuthSuccess(msg) {
+  var el = document.getElementById('auth-error');
+  el.style.background = '#f0fff4';
+  el.style.borderColor = '#9ae6b4';
+  el.style.color = '#276749';
+  el.textContent = msg;
+  el.style.display = 'block';
 }
-function showForgotPassword(){
-  document.getElementById('login-form').style.display='none';
-  document.getElementById('signup-form').style.display='none';
-  document.getElementById('forgot-form').style.display='block';
-  document.getElementById('auth-subtitle').textContent='Reset your password';
-  document.getElementById('auth-error').style.display='none';
+
+function showLogin() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('signup-form').style.display = 'none';
+  document.getElementById('forgot-form').style.display = 'none';
+  document.getElementById('reset-password-form').style.display = 'none';
+  document.getElementById('auth-subtitle').textContent = 'Sign in to access your planner';
+  document.getElementById('auth-error').style.display = 'none';
 }
-async function sendPasswordReset(){
-  const email=document.getElementById('forgot-email').value.trim();
-  if(!email){showAuthError('Please enter your email address.');return;}
-  const{error}=await supabase.auth.resetPasswordForEmail(email,{
-    redirectTo:'https://life-planner-pro-swart.vercel.app'
-  });
-  if(error){showAuthError(error.message);}
-  else{
-    const el=document.getElementById('auth-error');
-    el.style.background='#f0fff4';el.style.borderColor='#9ae6b4';el.style.color='#276749';
-    el.textContent='Check your email for a password reset link.';
-    el.style.display='block';
+
+function showSignup() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('signup-form').style.display = 'block';
+  document.getElementById('forgot-form').style.display = 'none';
+  document.getElementById('reset-password-form').style.display = 'none';
+  document.getElementById('auth-subtitle').textContent = 'Create your free account';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function showForgotPassword() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('signup-form').style.display = 'none';
+  document.getElementById('forgot-form').style.display = 'block';
+  document.getElementById('reset-password-form').style.display = 'none';
+  document.getElementById('auth-subtitle').textContent = 'Reset your password';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+// ── AUTH ACTIONS ────────────────────────────────────────────────────────
+async function signIn() {
+  if (!supabase) { showAuthError('Still initializing — please try again in a moment.'); return; }
+  var email = document.getElementById('login-email').value.trim().toLowerCase();
+  var password = document.getElementById('login-password').value;
+  if (!email || !password) { showAuthError('Please fill in all fields.'); return; }
+
+  // Check approved_users — maybeSingle returns {data:null,error:null} for 0 rows (no throw)
+  var approvalResult = await supabase
+    .from('approved_users')
+    .select('email')
+    .eq('email', email)
+    .maybeSingle();
+  if (!approvalResult.data) {
+    showAuthError('Access is by invitation only. Please purchase to get access.');
+    return;
+  }
+
+  var result = await supabase.auth.signInWithPassword({ email: email, password: password });
+  if (result.error) { showAuthError(result.error.message); }
+}
+
+async function signUp() {
+  if (!supabase) { showAuthError('Still initializing — please try again in a moment.'); return; }
+  var email = document.getElementById('signup-email').value.trim().toLowerCase();
+  var password = document.getElementById('signup-password').value;
+  var confirm = document.getElementById('signup-confirm').value;
+  if (!email || !password) { showAuthError('Please fill in all fields.'); return; }
+  if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  if (password !== confirm) { showAuthError('Passwords do not match.'); return; }
+
+  // Check approved_users — maybeSingle returns {data:null,error:null} for 0 rows (no throw)
+  var approvalResult = await supabase
+    .from('approved_users')
+    .select('email')
+    .eq('email', email)
+    .maybeSingle();
+  if (!approvalResult.data) {
+    showAuthError('Access is by invitation only. Please purchase to get access.');
+    return;
+  }
+
+  var result = await supabase.auth.signUp({ email: email, password: password });
+  if (result.error) {
+    showAuthError(result.error.message);
+  } else {
+    showAuthSuccess('Check your email to confirm your account, then sign in.');
   }
 }
-function showAuthError(msg){
-  const el=document.getElementById('auth-error');
-  el.textContent=msg;el.style.display='block';
-}
 
-async function signIn(){
-  const email=document.getElementById('login-email').value.trim();
-  const password=document.getElementById('login-password').value;
-  if(!email||!password){showAuthError('Please fill in all fields.');return;}
-  const{data:approved}=await supabase.from('approved_users').select('email').eq('email',email).single();
-  if(!approved){showAuthError('Access is by invitation only. Please purchase to get access.');return;}
-  const{error}=await supabase.auth.signInWithPassword({email,password});
-  if(error)showAuthError(error.message);
-}
-
-async function signUp(){
-  const email=document.getElementById('signup-email').value.trim();
-  const password=document.getElementById('signup-password').value;
-  const confirm=document.getElementById('signup-confirm').value;
-  if(!email||!password){showAuthError('Please fill in all fields.');return;}
-  if(password.length<6){showAuthError('Password must be at least 6 characters.');return;}
-  if(password!==confirm){showAuthError('Passwords do not match.');return;}
-  const{data:approved}=await supabase.from('approved_users').select('email').eq('email',email).single();
-  if(!approved){showAuthError('Access is by invitation only. Please purchase to get access.');return;}
-  const{error}=await supabase.auth.signUp({email,password});
-  if(error)showAuthError(error.message);
-  else showAuthError('Check your email to confirm your account, then sign in.');
-}
-
-async function signOut(){
-  await supabase.auth.signOut();
-  currentUser=null;
+async function signOut() {
+  if (supabase) { await supabase.auth.signOut(); }
+  currentUser = null;
   document.getElementById('auth-screen').classList.remove('hidden');
-  document.getElementById('app').style.display='none';
+  document.getElementById('app').style.display = 'none';
 }
 
-// ── DATA SYNC ────────────────────────────────────
-function showSaving(){
-  const el=document.getElementById('save-indicator');
-  el.textContent='Saving...';el.classList.add('show');
-}
-function showSaved(){
-  const el=document.getElementById('save-indicator');
-  el.textContent='Saved ✓';
-  setTimeout(()=>el.classList.remove('show'),1500);
-}
-
-async function save(key, value){
-  try{localStorage.setItem('lp_'+key, JSON.stringify(value));}catch(e){}
-  if(!currentUser)return;
-  pendingSaves[key]=value;
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(flushSaves, 500);
-}
-
-async function flushSaves(){
-  if(!currentUser||Object.keys(pendingSaves).length===0)return;
-  showSaving();
-  const upserts=Object.entries(pendingSaves).map(([key,value])=>{
-    const section=key.split('-')[0]||'general';
-    return{
-      user_id:currentUser.id,
-      section,
-      key,
-      value:JSON.stringify(value),
-      updated_at:new Date().toISOString()
-    };
+async function sendPasswordReset() {
+  if (!supabase) { showAuthError('Still initializing — please try again in a moment.'); return; }
+  var email = document.getElementById('forgot-email').value.trim();
+  if (!email) { showAuthError('Please enter your email address.'); return; }
+  var result = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://life-planner-pro-swart.vercel.app'
   });
-  pendingSaves={};
-  const{error}=await supabase.from('user_data').upsert(upserts,{onConflict:'user_id,section,key'});
-  if(!error)showSaved();
-}
-
-async function loadAllData(){
-  if(!currentUser)return;
-  const{data,error}=await supabase
-    .from('user_data')
-    .select('key,value')
-    .eq('user_id',currentUser.id);
-  if(error||!data)return;
-  data.forEach(row=>{
-    try{localStorage.setItem('lp_'+row.key, row.value);}catch(e){}
-  });
-}
-
-// ── PASSWORD RESET COMPLETION ────────────────────
-async function completePasswordReset(){
-  const newPassword=document.getElementById('reset-new-password').value;
-  const confirm=document.getElementById('reset-confirm-password').value;
-  if(!newPassword||newPassword.length<6){showAuthError('Password must be at least 6 characters.');return;}
-  if(newPassword!==confirm){showAuthError('Passwords do not match.');return;}
-  const{error}=await supabase.auth.updateUser({password:newPassword});
-  if(error){showAuthError(error.message);}
-  else{
-    const el=document.getElementById('auth-error');
-    el.style.background='#f0fff4';el.style.borderColor='#9ae6b4';el.style.color='#276749';
-    el.textContent='Password updated! Signing you in…';
-    el.style.display='block';
-    document.getElementById('reset-password-form').style.display='none';
+  if (result.error) {
+    showAuthError(result.error.message);
+  } else {
+    showAuthSuccess('Check your email for a password reset link.');
   }
 }
 
-// Expose all functions to global scope for HTML onclick handlers
+async function completePasswordReset() {
+  if (!supabase) { showAuthError('Still initializing — please try again in a moment.'); return; }
+  var newPassword = document.getElementById('reset-new-password').value;
+  var confirm = document.getElementById('reset-confirm-password').value;
+  if (!newPassword || newPassword.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  if (newPassword !== confirm) { showAuthError('Passwords do not match.'); return; }
+  var result = await supabase.auth.updateUser({ password: newPassword });
+  if (result.error) {
+    showAuthError(result.error.message);
+  } else {
+    showAuthSuccess('Password updated! Signing you in\u2026');
+    document.getElementById('reset-password-form').style.display = 'none';
+  }
+}
+
+// ── ASSIGN TO WINDOW IMMEDIATELY (parse time, not deferred) ────────────
+// This guarantees onclick handlers are never undefined, regardless of
+// what happens later in the load handler.
 window.signIn = signIn;
 window.signUp = signUp;
 window.signOut = signOut;
@@ -602,116 +606,170 @@ window.showForgotPassword = showForgotPassword;
 window.sendPasswordReset = sendPasswordReset;
 window.completePasswordReset = completePasswordReset;
 
-// ── DEFERRED: patch S.set + start auth listener after all scripts load ──
+// ── DATA SYNC ──────────────────────────────────────────────────────────
+function showSaving() {
+  var el = document.getElementById('save-indicator');
+  el.textContent = 'Saving...';
+  el.classList.add('show');
+}
+
+function showSaved() {
+  var el = document.getElementById('save-indicator');
+  el.textContent = 'Saved \u2713';
+  setTimeout(function() { el.classList.remove('show'); }, 1500);
+}
+
+async function save(key, value) {
+  try { localStorage.setItem('lp_' + key, JSON.stringify(value)); } catch(e) {}
+  if (!currentUser || !supabase) return;
+  pendingSaves[key] = value;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSaves, 500);
+}
+
+async function flushSaves() {
+  if (!currentUser || !supabase || Object.keys(pendingSaves).length === 0) return;
+  showSaving();
+  var upserts = Object.entries(pendingSaves).map(function(entry) {
+    var key = entry[0], value = entry[1];
+    return {
+      user_id: currentUser.id,
+      section: key.split('-')[0] || 'general',
+      key: key,
+      value: JSON.stringify(value),
+      updated_at: new Date().toISOString()
+    };
+  });
+  pendingSaves = {};
+  var result = await supabase.from('user_data').upsert(upserts, { onConflict: 'user_id,section,key' });
+  if (!result.error) showSaved();
+}
+
+async function loadAllData() {
+  if (!currentUser || !supabase) return;
+  var result = await supabase.from('user_data').select('key,value').eq('user_id', currentUser.id);
+  if (result.error || !result.data) return;
+  result.data.forEach(function(row) {
+    try { localStorage.setItem('lp_' + row.key, row.value); } catch(e) {}
+  });
+}
+
+// ── DEFERRED INIT (load event) ─────────────────────────────────────────
+// Only things that depend on other scripts (S object) or CDN readiness
+// go here. Auth functions above are already assigned to window.*.
 window.addEventListener('load', function() {
 
-// Patch S.set to mirror writes to Supabase (S is defined in a later script block)
-const _originalSset = S.set.bind(S);
-S.set = function(key, value){
-  _originalSset(key, value);
-  save(key, value);
-};
+  // Initialize Supabase client — CDN is guaranteed loaded at this point
+  supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
-// ── AUTH STATE LISTENER ──────────────────────────
-supabase.auth.onAuthStateChange(async(event, session)=>{
-  // Intercept password recovery flow before showing the app
-  if(event==='PASSWORD_RECOVERY'){
-    document.getElementById('auth-screen').classList.remove('hidden');
-    document.getElementById('login-form').style.display='none';
-    document.getElementById('signup-form').style.display='none';
-    document.getElementById('forgot-form').style.display='none';
-    document.getElementById('reset-password-form').style.display='block';
-    document.getElementById('auth-subtitle').textContent='Choose a new password';
-    document.getElementById('auth-error').style.display='none';
-    document.getElementById('app').style.display='none';
-    return;
-  }
-  if(session&&session.user){
-    currentUser=session.user;
-    // Load data from Supabase first
-    await loadAllData();
-    // Hide auth, show app
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app').style.display='flex';
-    // Show user email in settings
-    const emailEl=document.getElementById('user-email-display');
-    if(emailEl)emailEl.textContent='Signed in as: '+currentUser.email;
-    // Re-initialize everything now that data is loaded
-    renderAllHabitLists();
-    renderIncomeLog();
-    renderDebts();
-    renderBankAccounts();
-    renderSavings();
-    renderExpenses();
-    renderBills();
-    renderPlatforms();
-    renderCollabs();
-    renderJournalEntries();
-    renderQuickNotes();
-    renderIdeas();
-    renderTrips();
-    renderGroceries();
-    renderMealIdeas();
-    renderBucket();
-    renderTasks();
-    renderProjects();
-    renderMeetings();
-    renderMeetingNotes();
-    renderSkills();
-    renderReviews();
-    renderAchievements();
-    renderMilestones();
-    renderClasses();
-    renderGrades();
-    renderAssignments();
-    renderWeightLog();
-    renderWorkouts();
-    renderAppts();
-    renderStressHistory();
-    renderMoodHistory();
-    renderUpcoming();
-    renderHomeOptStats();
-    updateWeight();
-    updateDate();
-    rotateQuote();
-    buildTimeBlocks();
-    buildWeeklyGrid();
-    buildMealGrid();
-    buildWorkoutWeekPlan();
-    buildYearSelect();
-    renderCalendar();
-    renderContentCal();
-    // Restore saved text fields
-    const textFields=['morning-routine','night-routine','daily-intentions','daily-reflection',
-      'weekly-goals','weekly-reflection','monthly-goals','focus-word','monthly-dates',
-      'monthly-income-goal','monthly-income-actual','word-of-year','annual-income-goal',
-      'vision-notes','q1','q2','q3','q4','journal','brain-dump','grat1','grat2','grat3',
-      'stress-level','stress-notes','fitness-goals','short-goals','long-goals',
-      'water-intake','sleep-hours','steps','energy','home-quick-note',
-      'content-pillars','brand-voice','p1','p2','p3','w-start','w-curr','w-goal',
-      'w-unit','m-waist','m-hips','m-chest','m-arms','m-thighs','m-date'];
-    textFields.forEach(k=>{const v=S.get(k,null);if(v!==null){const el=document.getElementById(k);if(el)el.value=v;}});
-    const savedName=S.get('user-name','');
-    if(savedName){updateName(savedName);const inp=document.getElementById('user-name-input');if(inp)inp.value=savedName;}
-    const savedTheme=S.get('theme','');setTheme(savedTheme);
-    const savedCover=S.get('cover-photo',null);if(savedCover)showCover(savedCover);
-    const mai=S.get('monthly-income-actual',null);
-    if(mai!==null){const el=document.getElementById('monthly-income-actual');if(el){el.value=mai;updateMonthlyIncome();}}
-    const careerFields=['career-current-role','career-dream-role','career-timeline',
-      'career-path-notes','fitness-goal-weight','fitness-target-date','target-gpa',
-      'current-gpa','semester-goals'];
-    careerFields.forEach(k=>{const v=S.get(k,null);if(v!==null){const el=document.getElementById(k);if(el)el.value=v;}});
-  } else {
-    currentUser=null;
-    document.getElementById('auth-screen').classList.remove('hidden');
-    const appEl=document.getElementById('app');
-    if(appEl)appEl.style.display='none';
-  }
-});
+  // Patch S.set to mirror writes to Supabase.
+  // S is defined in a later <script> block; by load time all scripts have run.
+  var origSset = S.set.bind(S);
+  S.set = function(key, value) {
+    origSset(key, value);
+    save(key, value);
+  };
 
-// Hide app until auth is confirmed
-const _appEl = document.getElementById('app');
-if(_appEl) _appEl.style.display = 'none';
+  // Hide app until auth state is confirmed
+  var appEl = document.getElementById('app');
+  if (appEl) appEl.style.display = 'none';
+
+  // Auth state listener
+  supabase.auth.onAuthStateChange(async function(event, session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('signup-form').style.display = 'none';
+      document.getElementById('forgot-form').style.display = 'none';
+      document.getElementById('reset-password-form').style.display = 'block';
+      document.getElementById('auth-subtitle').textContent = 'Choose a new password';
+      document.getElementById('auth-error').style.display = 'none';
+      document.getElementById('app').style.display = 'none';
+      return;
+    }
+    if (session && session.user) {
+      currentUser = session.user;
+      await loadAllData();
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app').style.display = 'flex';
+      var emailEl = document.getElementById('user-email-display');
+      if (emailEl) emailEl.textContent = 'Signed in as: ' + currentUser.email;
+      renderAllHabitLists();
+      renderIncomeLog();
+      renderDebts();
+      renderBankAccounts();
+      renderSavings();
+      renderExpenses();
+      renderBills();
+      renderPlatforms();
+      renderCollabs();
+      renderJournalEntries();
+      renderQuickNotes();
+      renderIdeas();
+      renderTrips();
+      renderGroceries();
+      renderMealIdeas();
+      renderBucket();
+      renderTasks();
+      renderProjects();
+      renderMeetings();
+      renderMeetingNotes();
+      renderSkills();
+      renderReviews();
+      renderAchievements();
+      renderMilestones();
+      renderClasses();
+      renderGrades();
+      renderAssignments();
+      renderWeightLog();
+      renderWorkouts();
+      renderAppts();
+      renderStressHistory();
+      renderMoodHistory();
+      renderUpcoming();
+      renderHomeOptStats();
+      updateWeight();
+      updateDate();
+      rotateQuote();
+      buildTimeBlocks();
+      buildWeeklyGrid();
+      buildMealGrid();
+      buildWorkoutWeekPlan();
+      buildYearSelect();
+      renderCalendar();
+      renderContentCal();
+      var textFields = ['morning-routine','night-routine','daily-intentions','daily-reflection',
+        'weekly-goals','weekly-reflection','monthly-goals','focus-word','monthly-dates',
+        'monthly-income-goal','monthly-income-actual','word-of-year','annual-income-goal',
+        'vision-notes','q1','q2','q3','q4','journal','brain-dump','grat1','grat2','grat3',
+        'stress-level','stress-notes','fitness-goals','short-goals','long-goals',
+        'water-intake','sleep-hours','steps','energy','home-quick-note',
+        'content-pillars','brand-voice','p1','p2','p3','w-start','w-curr','w-goal',
+        'w-unit','m-waist','m-hips','m-chest','m-arms','m-thighs','m-date'];
+      textFields.forEach(function(k) {
+        var v = S.get(k, null);
+        if (v !== null) { var el = document.getElementById(k); if (el) el.value = v; }
+      });
+      var savedName = S.get('user-name', '');
+      if (savedName) { updateName(savedName); var inp = document.getElementById('user-name-input'); if (inp) inp.value = savedName; }
+      var savedTheme = S.get('theme', ''); setTheme(savedTheme);
+      var savedCover = S.get('cover-photo', null); if (savedCover) showCover(savedCover);
+      var mai = S.get('monthly-income-actual', null);
+      if (mai !== null) { var maiEl = document.getElementById('monthly-income-actual'); if (maiEl) { maiEl.value = mai; updateMonthlyIncome(); } }
+      var careerFields = ['career-current-role','career-dream-role','career-timeline',
+        'career-path-notes','fitness-goal-weight','fitness-target-date','target-gpa',
+        'current-gpa','semester-goals'];
+      careerFields.forEach(function(k) {
+        var v = S.get(k, null);
+        if (v !== null) { var el = document.getElementById(k); if (el) el.value = v; }
+      });
+    } else {
+      currentUser = null;
+      document.getElementById('auth-screen').classList.remove('hidden');
+      var appEl2 = document.getElementById('app');
+      if (appEl2) appEl2.style.display = 'none';
+    }
+  });
 
 }); // end window.addEventListener('load')
 </script>

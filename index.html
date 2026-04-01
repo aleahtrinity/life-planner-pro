@@ -3255,6 +3255,7 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
 
 
 <script>
+// ── Supabase Auth — no async/await; pure .then() for Safari compatibility ──
 (function() {
   'use strict';
 
@@ -3262,26 +3263,34 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
   var SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqeGJhdGNleWNsZmVubnJ0YmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTIwNTQsImV4cCI6MjA5MDMyODA1NH0.XgnxwnDsZdEBVB5diAbQJb1P-OIrha97j3gT_AGQww0';
 
   window.addEventListener('load', function() {
-    if (!window.supabase || !window.supabase.createClient) {
-      document.getElementById('auth-msg').textContent = 'Connection error. Please refresh.';
-      document.getElementById('auth-msg').className = 'auth-msg error';
-      document.getElementById('auth-msg').style.display = 'block';
+
+    // ── INIT: verify CDN loaded, then create client synchronously ──────────
+    // createClient is called before any event listeners are attached so
+    // the client is always ready when a button is clicked.
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      var msgEl = document.getElementById('auth-msg');
+      if (msgEl) {
+        msgEl.textContent = 'Connection error — please refresh the page.';
+        msgEl.className = 'auth-msg error';
+        msgEl.style.display = 'block';
+      }
       return;
     }
 
-    var sb = window.supabase.createClient(SURL, SKEY);
-    var _uid = null;
+    var sb      = window.supabase.createClient(SURL, SKEY); // synchronous
+    var _uid    = null;
     var _pending = {};
-    var _timer = null;
+    var _timer  = null;
+    var _pill   = document.getElementById('save-pill');
 
-    // ── UI HELPERS ──────────────────────────────
+    // ── UI HELPERS ─────────────────────────────────────────────────────────
     function showForm(name) {
-      document.getElementById('form-login').style.display  = name === 'login'  ? 'block' : 'none';
-      document.getElementById('form-signup').style.display = name === 'signup' ? 'block' : 'none';
-      document.getElementById('form-forgot').style.display = name === 'forgot' ? 'block' : 'none';
+      document.getElementById('form-login').style.display  = (name === 'login')  ? 'block' : 'none';
+      document.getElementById('form-signup').style.display = (name === 'signup') ? 'block' : 'none';
+      document.getElementById('form-forgot').style.display = (name === 'forgot') ? 'block' : 'none';
       clearMsg();
-      var subs = { login: 'Sign in to your account', signup: 'Create your account', forgot: 'Reset your password' };
-      document.getElementById('auth-sub').textContent = subs[name] || '';
+      var labels = { login: 'Sign in to your account', signup: 'Create your account', forgot: 'Reset your password' };
+      document.getElementById('auth-sub').textContent = labels[name] || '';
     }
 
     function showMsg(text, type) {
@@ -3297,138 +3306,178 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
       el.textContent = '';
     }
 
-    // ── APPROVAL CHECK ──────────────────────────
-    async function isApproved(email) {
-      try {
-        var result = await sb
-          .from('approved_users')
-          .select('email')
-          .eq('email', email.toLowerCase().trim())
-          .maybeSingle();
-        return !!(result && result.data);
-      } catch(e) {
-        console.error('Approval check error:', e);
-        return false;
-      }
+    function setBtn(id, label, isDisabled) {
+      var btn = document.getElementById(id);
+      if (btn) { btn.textContent = label; btn.disabled = isDisabled; }
     }
 
-    // ── SIGN IN ─────────────────────────────────
-    document.getElementById('btn-signin').addEventListener('click', async function() {
+    // ── APPROVAL CHECK — returns a Promise<boolean> ────────────────────────
+    // Uses .maybeSingle() so 0 rows → {data:null, error:null} (no throw).
+    function isApproved(email) {
+      return sb
+        .from('approved_users')
+        .select('email')
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle()
+        .then(function(result) {
+          return !!(result && result.data);
+        })
+        .catch(function(err) {
+          console.error('Approval check error:', err);
+          return false;
+        });
+    }
+
+    // ── SIGN IN ────────────────────────────────────────────────────────────
+    document.getElementById('btn-signin').addEventListener('click', function() {
       var email    = document.getElementById('li-email').value.trim();
       var password = document.getElementById('li-pass').value;
       if (!email || !password) { showMsg('Please fill in all fields.'); return; }
-      this.textContent = 'Checking...';
-      this.disabled = true;
-      var approved = await isApproved(email);
-      if (!approved) {
-        showMsg('Access is by invitation only. Please purchase to get access.');
-        this.textContent = 'Sign In';
-        this.disabled = false;
-        return;
-      }
-      var res = await sb.auth.signInWithPassword({ email: email, password: password });
-      if (res.error) {
-        showMsg(res.error.message);
-        this.textContent = 'Sign In';
-        this.disabled = false;
-      }
+      setBtn('btn-signin', 'Checking\u2026', true);
+
+      isApproved(email)
+        .then(function(approved) {
+          if (!approved) {
+            showMsg('Access is by invitation only. Please purchase to get access.');
+            setBtn('btn-signin', 'Sign In', false);
+            return;
+          }
+          return sb.auth.signInWithPassword({ email: email, password: password })
+            .then(function(res) {
+              if (res.error) {
+                showMsg(res.error.message);
+                setBtn('btn-signin', 'Sign In', false);
+              }
+              // success: onAuthStateChange fires and shows the app
+            });
+        })
+        .catch(function() {
+          showMsg('Something went wrong. Please try again.');
+          setBtn('btn-signin', 'Sign In', false);
+        });
     });
 
-    // ── SIGN UP ─────────────────────────────────
-    document.getElementById('btn-signup').addEventListener('click', async function() {
+    // ── SIGN UP ────────────────────────────────────────────────────────────
+    document.getElementById('btn-signup').addEventListener('click', function() {
       var email = document.getElementById('su-email').value.trim();
       var pass  = document.getElementById('su-pass').value;
       var pass2 = document.getElementById('su-pass2').value;
-      if (!email || !pass) { showMsg('Please fill in all fields.'); return; }
-      if (pass.length < 6) { showMsg('Password must be at least 6 characters.'); return; }
-      if (pass !== pass2)  { showMsg('Passwords do not match.'); return; }
-      this.textContent = 'Checking...';
-      this.disabled = true;
-      var approved = await isApproved(email);
-      if (!approved) {
-        showMsg('Access is by invitation only. Please purchase to get access.');
-        this.textContent = 'Create Account';
-        this.disabled = false;
-        return;
-      }
-      var res = await sb.auth.signUp({ email: email, password: pass });
-      if (res.error) {
-        showMsg(res.error.message);
-      } else {
-        showMsg('Account created! You can now sign in.', 'success');
-        setTimeout(function() { showForm('login'); }, 2000);
-      }
-      this.textContent = 'Create Account';
-      this.disabled = false;
+      if (!email || !pass)     { showMsg('Please fill in all fields.'); return; }
+      if (pass.length < 6)     { showMsg('Password must be at least 6 characters.'); return; }
+      if (pass !== pass2)      { showMsg('Passwords do not match.'); return; }
+      setBtn('btn-signup', 'Checking\u2026', true);
+
+      isApproved(email)
+        .then(function(approved) {
+          if (!approved) {
+            showMsg('Access is by invitation only. Please purchase to get access.');
+            setBtn('btn-signup', 'Create Account', false);
+            return;
+          }
+          return sb.auth.signUp({ email: email, password: pass })
+            .then(function(res) {
+              if (res.error) {
+                showMsg(res.error.message);
+              } else {
+                showMsg('Account created! Check your email, then sign in.', 'success');
+                setTimeout(function() { showForm('login'); }, 2000);
+              }
+              setBtn('btn-signup', 'Create Account', false);
+            });
+        })
+        .catch(function() {
+          showMsg('Something went wrong. Please try again.');
+          setBtn('btn-signup', 'Create Account', false);
+        });
     });
 
-    // ── FORGOT PASSWORD ─────────────────────────
-    document.getElementById('btn-reset').addEventListener('click', async function() {
+    // ── FORGOT PASSWORD ────────────────────────────────────────────────────
+    document.getElementById('btn-reset').addEventListener('click', function() {
       var email = document.getElementById('fp-email').value.trim();
       if (!email) { showMsg('Please enter your email.'); return; }
-      this.textContent = 'Sending...';
-      this.disabled = true;
-      var res = await sb.auth.resetPasswordForEmail(email, {
+      setBtn('btn-reset', 'Sending\u2026', true);
+
+      sb.auth.resetPasswordForEmail(email, {
         redirectTo: 'https://life-planner-pro-swart.vercel.app'
-      });
-      if (res.error) showMsg(res.error.message);
-      else showMsg('Reset link sent! Check your email.', 'success');
-      this.textContent = 'Send Reset Link';
-      this.disabled = false;
+      })
+        .then(function(res) {
+          if (res.error) {
+            showMsg(res.error.message);
+          } else {
+            showMsg('Reset link sent! Check your email.', 'success');
+          }
+          setBtn('btn-reset', 'Send Reset Link', false);
+        })
+        .catch(function() {
+          showMsg('Something went wrong. Please try again.');
+          setBtn('btn-reset', 'Send Reset Link', false);
+        });
     });
 
-    // ── NAV ─────────────────────────────────────
-    document.getElementById('go-signup').addEventListener('click', function() { showForm('signup'); });
-    document.getElementById('go-login').addEventListener('click',  function() { showForm('login'); });
-    document.getElementById('go-login2').addEventListener('click', function() { showForm('login'); });
-    document.getElementById('btn-forgot').addEventListener('click',function() { showForm('forgot'); });
+    // ── NAV LINKS ──────────────────────────────────────────────────────────
+    document.getElementById('go-signup').addEventListener('click',  function() { showForm('signup'); });
+    document.getElementById('go-login').addEventListener('click',   function() { showForm('login'); });
+    document.getElementById('go-login2').addEventListener('click',  function() { showForm('login'); });
+    document.getElementById('btn-forgot').addEventListener('click', function() { showForm('forgot'); });
 
-    // ── SIGN OUT ────────────────────────────────
+    // ── SIGN OUT ───────────────────────────────────────────────────────────
     var soBtn = document.getElementById('btn-signout');
-    if (soBtn) soBtn.addEventListener('click', function() { sb.auth.signOut(); });
+    if (soBtn) { soBtn.addEventListener('click', function() { sb.auth.signOut(); }); }
     window.doSignOut = function() { sb.auth.signOut(); };
 
-    // ── DATA SYNC ───────────────────────────────
-    var _pill = document.getElementById('save-pill');
-
+    // ── DATA SYNC ──────────────────────────────────────────────────────────
     function syncSave(key, value) {
       if (!_uid) return;
       _pending[key] = value;
       clearTimeout(_timer);
-      _timer = setTimeout(async function() {
+      _timer = setTimeout(function() {
         if (!_uid || Object.keys(_pending).length === 0) return;
-        _pill.style.opacity = '1';
-        _pill.textContent = 'Saving...';
-        var rows = Object.entries(_pending).map(function(entry) {
+        if (_pill) { _pill.style.opacity = '1'; _pill.textContent = 'Saving...'; }
+        var rows = Object.keys(_pending).map(function(k) {
           return {
             user_id: _uid,
-            section: entry[0].split('-')[0] || 'general',
-            key: entry[0],
-            value: JSON.stringify(entry[1]),
+            section: k.split('-')[0] || 'general',
+            key: k,
+            value: JSON.stringify(_pending[k]),
             updated_at: new Date().toISOString()
           };
         });
         _pending = {};
-        var res = await sb.from('user_data').upsert(rows, { onConflict: 'user_id,section,key' });
-        _pill.textContent = res.error ? 'Save failed' : 'Saved ✓';
-        setTimeout(function() { _pill.style.opacity = '0'; }, 2000);
+        sb.from('user_data')
+          .upsert(rows, { onConflict: 'user_id,section,key' })
+          .then(function(res) {
+            if (_pill) {
+              _pill.textContent = res.error ? 'Save failed' : 'Saved \u2713';
+              setTimeout(function() { _pill.style.opacity = '0'; }, 2000);
+            }
+          })
+          .catch(function() {
+            if (_pill) { _pill.textContent = 'Save failed'; }
+          });
       }, 600);
     }
 
-    if (window.S && window.S.set) {
+    if (window.S && typeof window.S.set === 'function') {
       var _origSet = window.S.set.bind(window.S);
       window.S.set = function(k, v) { _origSet(k, v); syncSave(k, v); };
     }
 
-    async function loadUserData(uid) {
-      var res = await sb.from('user_data').select('key,value').eq('user_id', uid);
-      if (res.data) {
-        res.data.forEach(function(row) {
-          try { localStorage.setItem('lp_' + row.key, row.value); } catch(e) {}
+    // ── LOAD USER DATA ─────────────────────────────────────────────────────
+    function loadUserData(uid) {
+      return sb.from('user_data').select('key,value').eq('user_id', uid)
+        .then(function(res) {
+          if (res.data) {
+            res.data.forEach(function(row) {
+              try { localStorage.setItem('lp_' + row.key, row.value); } catch(e) {}
+            });
+          }
+        })
+        .catch(function(err) {
+          console.error('loadUserData error:', err);
         });
-      }
     }
 
+    // ── REFRESH APP AFTER LOGIN ────────────────────────────────────────────
     function refreshApp(user) {
       _uid = user.id;
       var ae = document.getElementById('acct-email');
@@ -3436,7 +3485,8 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
       document.getElementById('auth-overlay').style.display = 'none';
       document.getElementById('main-app').style.display = 'flex';
 
-      var fns = ['renderAllHabitLists','renderIncomeLog','renderDebts','renderBankAccounts',
+      var fns = [
+        'renderAllHabitLists','renderIncomeLog','renderDebts','renderBankAccounts',
         'renderSavings','renderExpenses','renderBills','renderPlatforms','renderCollabs',
         'renderJournalEntries','renderQuickNotes','renderIdeas','renderTrips',
         'renderGroceries','renderMealIdeas','renderBucket','renderTasks','renderProjects',
@@ -3445,19 +3495,22 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
         'renderAssignments','renderWeightLog','renderWorkouts','renderAppts',
         'renderStressHistory','renderMoodHistory','renderUpcoming','renderHomeOptStats',
         'updateWeight','updateDate','buildTimeBlocks','buildWeeklyGrid','buildMealGrid',
-        'buildWorkoutWeekPlan','buildYearSelect','renderCalendar','renderContentCal'];
+        'buildWorkoutWeekPlan','buildYearSelect','renderCalendar','renderContentCal'
+      ];
       fns.forEach(function(fn) { if (window[fn]) { try { window[fn](); } catch(e) {} } });
 
-      ['morning-routine','night-routine','daily-intentions','daily-reflection',
-       'weekly-goals','weekly-reflection','monthly-goals','focus-word','monthly-dates',
-       'monthly-income-goal','word-of-year','annual-income-goal','vision-notes',
-       'q1','q2','q3','q4','grat1','grat2','grat3','stress-level','stress-notes',
-       'fitness-goals','short-goals','long-goals','water-intake','sleep-hours',
-       'steps','energy','home-quick-note','content-pillars','brand-voice',
-       'p1','p2','p3','w-start','w-curr','w-goal','career-current-role',
-       'career-dream-role','career-timeline','career-path-notes','target-gpa',
-       'current-gpa','semester-goals','fitness-goal-weight','fitness-target-date'
-      ].forEach(function(k) {
+      var textKeys = [
+        'morning-routine','night-routine','daily-intentions','daily-reflection',
+        'weekly-goals','weekly-reflection','monthly-goals','focus-word','monthly-dates',
+        'monthly-income-goal','word-of-year','annual-income-goal','vision-notes',
+        'q1','q2','q3','q4','grat1','grat2','grat3','stress-level','stress-notes',
+        'fitness-goals','short-goals','long-goals','water-intake','sleep-hours',
+        'steps','energy','home-quick-note','content-pillars','brand-voice',
+        'p1','p2','p3','w-start','w-curr','w-goal','career-current-role',
+        'career-dream-role','career-timeline','career-path-notes','target-gpa',
+        'current-gpa','semester-goals','fitness-goal-weight','fitness-target-date'
+      ];
+      textKeys.forEach(function(k) {
         var v = window.S ? window.S.get(k, null) : null;
         if (v !== null) { var el = document.getElementById(k); if (el) el.value = v; }
       });
@@ -3466,8 +3519,7 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
       if (nm && window.updateName) window.updateName(nm);
       var ui = document.getElementById('user-name-input');
       if (ui && nm) ui.value = nm;
-      var th = window.S ? window.S.get('theme', '') : '';
-      if (window.setTheme) window.setTheme(th);
+      if (window.setTheme) window.setTheme(window.S ? window.S.get('theme', '') : '');
       var cv = window.S ? window.S.get('cover-photo', null) : null;
       if (cv && window.showCover) window.showCover(cv);
       var mai = window.S ? window.S.get('monthly-income-actual', null) : null;
@@ -3477,11 +3529,13 @@ if(savedMoodNote){const el=document.getElementById('mood-note');if(el)el.value=s
       }
     }
 
-    // ── AUTH STATE ──────────────────────────────
-    sb.auth.onAuthStateChange(async function(event, session) {
+    // ── AUTH STATE LISTENER ────────────────────────────────────────────────
+    // Plain function — no async keyword — for maximum Safari compatibility.
+    sb.auth.onAuthStateChange(function(event, session) {
       if (session && session.user) {
-        await loadUserData(session.user.id);
-        refreshApp(session.user);
+        loadUserData(session.user.id).then(function() {
+          refreshApp(session.user);
+        });
       } else {
         _uid = null;
         document.getElementById('auth-overlay').style.display = 'flex';
